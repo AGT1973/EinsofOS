@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>EinsofOS - Visor de Pantallas Efímeras Bare-Metal</title>
+    <style>
+        body {
+            background-color: #11111b;
+            color: #cdd6f4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #89b4fa; margin-bottom: 10px; }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        button {
+            background-color: #89b4fa;
+            color: #11111b;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { background-color: #b4befe; }
+        .screen-container {
+            border: 2px solid #45475a;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #1e1e2e;
+        }
+        img { display: block; max-width: 100%; height: auto; }
+        .meta-card {
+            margin-top: 20px;
+            max-width: 800px;
+            background: #1e1e2e;
+            padding: 15px 25px;
+            border-radius: 8px;
+            border-left: 4px solid #a6e3a1;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌌 EinsofOS: Demostración de Transición de Pantallas</h1>
+    <p>Renderizado Bare-Metal sin X11/Wayland/Windows • 800x600 ARGB8888 • Cero C</p>
+
+    <div class="controls">
+        <button onclick="showScreen('pantalla1_login.bmp', 'Pantalla 1: Acceso / Login (Efímera en RAM)')">Mostrar Pantalla 1 (Login)</button>
+        <button onclick="showScreen('pantalla2_dashboard.bmp', 'Pantalla 2: Dashboard Central (Tras Validación BBDD)')">Mostrar Pantalla 2 (Dashboard)</button>
+    </div>
+
+    <div class="screen-container">
+        <img id="screenImg" src="pantalla1_login.bmp" alt="Pantalla Einsof">
+    </div>
+
+    <div class="meta-card">
+        <h3 id="screenTitle" style="color: #a6e3a1; margin-top: 0;">Pantalla 1: Acceso / Login (Efímera en RAM)</h3>
+        <p><strong>Protocolo Efímero:</strong> Al autenticar con éxito mediante el MCP en PostgreSQL 16 y proyección Stiefel, el Slab de Pantalla 1 se destruye en \(O(1)\) por incremento generacional y el hardware mapea instantáneamente el Slab de Pantalla 2.</p>
+    </div>
+
+    <script>
+        function showScreen(filename, title) {
+            document.getElementById('screenImg').src = filename;
+            document.getElementById('screenTitle').innerText = title;
+        }
+    </script>
+</body>
+</html>
