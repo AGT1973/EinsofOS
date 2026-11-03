@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.o
+*.so
+boot/*.img
+boot/*.ppm

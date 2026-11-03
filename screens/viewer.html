@@ -64,6 +64,7 @@
         <button onclick="showScreen('pantalla1_login.bmp', 'Pantalla 1: Acceso / Login (Efímera en RAM)')">1. Login Efímero</button>
         <button onclick="showScreen('pantalla2_dashboard.bmp', 'Pantalla 2: Dashboard Central (Tras Validación BBDD)')">2. Dashboard Central</button>
         <button onclick="showScreen('pantalla3_satellite_failover.bmp', 'Pantalla 3: Failover Satelital Autónomo (Hot-Reload en Vivo)')">3. Failover Satelital en Caliente</button>
+        <button onclick="showScreen('uefi_screen.bmp', 'Captura Bare-Metal UEFI GOP: Arranque Físico en Silicio (1280x800)')" style="border-color: #a6e3a1; color: #a6e3a1;">4. Captura Física UEFI GOP (1280x800)</button>
     </div>
 
     <div class="screen-container">
@@ -79,7 +80,9 @@
         function showScreen(filename, title) {
             document.getElementById('screenImg').src = filename;
             document.getElementById('screenTitle').innerText = title;
-            if (filename.includes('login')) {
+            if (filename.includes('uefi')) {
+                document.getElementById('screenDesc').innerHTML = '<strong>Captura Real de Hardware UEFI GOP:</strong> Renderizado físico directamente sobre el Linear Framebuffer de video (0x80000000, 1280x800 a 32-bit ARGB) booteando directamente desde el firmware UEFI x86_64 en el nodo ALADIN con aceleración KVM. Tipografía bitmap 8x16, telemetría y benchmark SIMD ejecutados sin ningún sistema operativo subyacente.';
+            } else if (filename.includes('login')) {
                 document.getElementById('screenDesc').innerHTML = '<strong>Protocolo Efímero:</strong> Al autenticar con éxito mediante el MCP en PostgreSQL 16 y proyección Stiefel, el Slab de Pantalla 1 se destruye en O(1) por incremento generacional.';
             } else if (filename.includes('dashboard')) {
                 document.getElementById('screenDesc').innerHTML = '<strong>Dashboard de Silicio:</strong> Telemetría en tiempo real de nodos ALADIN, memoria Arena R15 y precisión exacta COBOL sin error de coma flotante.';

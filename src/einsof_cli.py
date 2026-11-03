@@ -111,6 +111,12 @@ def main():
     p_compile.add_argument("archivo", help="Nombre del programa")
     p_compile.add_argument("--target", default="asm", help="Lenguaje objetivo (go, rust, cobol, ts, py, asm)")
 
+    # flash
+    subparsers.add_parser("flash", help="Guia de grabacion y flasheo de imagen UEFI a USB")
+
+    # uefi
+    subparsers.add_parser("uefi", help="Informacion y estado del bootloader bare-metal UEFI")
+
     args = parser.parse_args()
 
     if args.command == "check":
@@ -119,6 +125,21 @@ def main():
         sys.exit(cmd_screen(args))
     elif args.command == "compile":
         sys.exit(cmd_compile(args))
+    elif args.command == "flash":
+        from einsof_usb_flasher import main as flash_main
+        sys.exit(flash_main())
+    elif args.command == "uefi":
+        print("=" * 70)
+        print("  EINSOF OS: BOOTLOADER NATIVO BARE-METAL UEFI (64-BIT)")
+        print("=" * 70)
+        img = os.path.join(base_dir, "boot", "einsof_os.img")
+        efi = os.path.join(base_dir, "boot", "BOOTX64.EFI")
+        print(f"[*] Imagen de arranque: {img} (Existe: {os.path.exists(img)})")
+        print(f"[*] Binario UEFI:      {efi} (Existe: {os.path.exists(efi)})")
+        print("[*] Salida grafica:     1280x800 a 32-bit ARGB via Linear Framebuffer (GOP)")
+        print("[*] Soporte hardware:   x86_64 Long Mode, SIMD/SSE2, KVM nativo")
+        print("=" * 70)
+        sys.exit(0)
     else:
         parser.print_help()
         sys.exit(0)
