@@ -14,24 +14,30 @@
             padding: 20px;
             margin: 0;
         }
-        h1 { color: #89b4fa; margin-bottom: 10px; }
+        h1 { color: #89b4fa; margin-bottom: 5px; }
+        p.subtitle { color: #a6adc8; margin-top: 0; margin-bottom: 20px; }
         .controls {
             margin-bottom: 20px;
             display: flex;
             gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         button {
-            background-color: #89b4fa;
-            color: #11111b;
-            border: none;
-            padding: 12px 24px;
-            font-size: 16px;
+            background-color: #313244;
+            color: #cdd6f4;
+            border: 2px solid #89b4fa;
+            padding: 12px 20px;
+            font-size: 15px;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
         }
-        button:hover { background-color: #b4befe; }
+        button:hover, button.active {
+            background-color: #89b4fa;
+            color: #11111b;
+        }
         .screen-container {
             border: 2px solid #45475a;
             border-radius: 8px;
@@ -51,27 +57,35 @@
     </style>
 </head>
 <body>
-    <h1>🌌 EinsofOS: Demostración de Transición de Pantallas</h1>
-    <p>Renderizado Bare-Metal sin X11/Wayland/Windows • 800x600 ARGB8888 • Cero C</p>
+    <h1>🌌 EinsofOS: Visor de Pantallas Bare-Metal</h1>
+    <p class="subtitle">Renderizado de Silicio 800x600 ARGB8888 • Hot-Reloading en Caliente • Cero C</p>
 
     <div class="controls">
-        <button onclick="showScreen('pantalla1_login.bmp', 'Pantalla 1: Acceso / Login (Efímera en RAM)')">Mostrar Pantalla 1 (Login)</button>
-        <button onclick="showScreen('pantalla2_dashboard.bmp', 'Pantalla 2: Dashboard Central (Tras Validación BBDD)')">Mostrar Pantalla 2 (Dashboard)</button>
+        <button onclick="showScreen('pantalla1_login.bmp', 'Pantalla 1: Acceso / Login (Efímera en RAM)')">1. Login Efímero</button>
+        <button onclick="showScreen('pantalla2_dashboard.bmp', 'Pantalla 2: Dashboard Central (Tras Validación BBDD)')">2. Dashboard Central</button>
+        <button onclick="showScreen('pantalla3_satellite_failover.bmp', 'Pantalla 3: Failover Satelital Autónomo (Hot-Reload en Vivo)')">3. Failover Satelital en Caliente</button>
     </div>
 
     <div class="screen-container">
-        <img id="screenImg" src="pantalla1_login.bmp" alt="Pantalla Einsof">
+        <img id="screenImg" src="pantalla3_satellite_failover.bmp" alt="Pantalla Einsof">
     </div>
 
     <div class="meta-card">
-        <h3 id="screenTitle" style="color: #a6e3a1; margin-top: 0;">Pantalla 1: Acceso / Login (Efímera en RAM)</h3>
-        <p><strong>Protocolo Efímero:</strong> Al autenticar con éxito mediante el MCP en PostgreSQL 16 y proyección Stiefel, el Slab de Pantalla 1 se destruye en \(O(1)\) por incremento generacional y el hardware mapea instantáneamente el Slab de Pantalla 2.</p>
+        <h3 id="screenTitle" style="color: #a6e3a1; margin-top: 0;">Pantalla 3: Failover Satelital Autónomo (Hot-Reload en Vivo)</h3>
+        <p id="screenDesc"><strong>Hot-Patching de Silicio:</strong> La IA analizó la caída de SNR del Satélite Alfa (< 12 dB) y conmutó el puntero de red al Satélite Beta en tiempo real usando la instrucción atómica x86_64 <code>xchg</code> (0.3 nanosegundos). El Framebuffer de pantalla se actualizó instantáneamente sin reiniciar el servidor.</p>
     </div>
 
     <script>
         function showScreen(filename, title) {
             document.getElementById('screenImg').src = filename;
             document.getElementById('screenTitle').innerText = title;
+            if (filename.includes('login')) {
+                document.getElementById('screenDesc').innerHTML = '<strong>Protocolo Efímero:</strong> Al autenticar con éxito mediante el MCP en PostgreSQL 16 y proyección Stiefel, el Slab de Pantalla 1 se destruye en O(1) por incremento generacional.';
+            } else if (filename.includes('dashboard')) {
+                document.getElementById('screenDesc').innerHTML = '<strong>Dashboard de Silicio:</strong> Telemetría en tiempo real de nodos ALADIN, memoria Arena R15 y precisión exacta COBOL sin error de coma flotante.';
+            } else {
+                document.getElementById('screenDesc').innerHTML = '<strong>Hot-Patching de Silicio:</strong> La IA analizó la caída de SNR del Satélite Alfa (< 12 dB) y conmutó el puntero de red al Satélite Beta en tiempo real usando la instrucción atómica x86_64 <code>xchg</code> (0.3 nanosegundos). Cero paquetes perdidos.';
+            }
         }
     </script>
 </body>
