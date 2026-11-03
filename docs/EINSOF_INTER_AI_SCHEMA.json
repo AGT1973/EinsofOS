@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EinsofInterAISchema",
+  "description": "Especificacion canónica del Lenguaje Einsof para transferencia de conocimiento directo entre modelos de IA (Machine-to-Machine). Cero ambigüedad lingüística.",
+  "version": "1.1.0",
+  "hardware_target": "x86_64-avx2-baremetal",
+  "memory_model": {
+    "base_register": "R15",
+    "addressing": "Base + Offset (Offset uint64 relativo a R15)",
+    "cache_line_bytes": 64,
+    "fat_pointer_bytes": 16,
+    "fat_pointer_layout": {
+      "reg_rax": "payload_offset (uint64)",
+      "reg_rdx": "meta_descriptor (dim_d:32 | flags:8 | generation:8 | type_id:16)"
+    }
+  },
+  "type_system": [
+    {
+      "type_id": 1,
+      "mnemonic": "TYPE_TENSOR_STIEFEL",
+      "description": "Vector o tensor continuo ortonormalizado en S^{D-1}",
+      "math_invariant": "||X|| = 1.0 +- 1e-15 (Neumaier compensated)",
+      "flags_default": ["FLAG_ESTABLE", "FLAG_READONLY"]
+    },
+    {
+      "type_id": 2,
+      "mnemonic": "TYPE_SUBSPACE_GRASSMANN",
+      "description": "Subespacio lineal de dimension K en R^D",
+      "math_invariant": "B^T * B = I_k",
+      "flags_default": ["FLAG_ESTABLE"]
+    },
+    {
+      "type_id": 3,
+      "mnemonic": "TYPE_ROTOR_CLIFFORD",
+      "description": "Operador par en Spin(D) para rotaciones y transformaciones geodésicas",
+      "math_invariant": "R * rev(R) = 1",
+      "flags_default": ["FLAG_ESTABLE"]
+    },
+    {
+      "type_id": 4,
+      "mnemonic": "TYPE_ATRACTOR_DYNAMICS",
+      "description": "Estado atractor para bifurcaciones y control de flujo por potencial de Lyapunov",
+      "math_invariant": "dPhi/dt <= 0 (Disipativo / Convergencia estable)",
+      "flags_default": ["FLAG_ESTABLE"]
+    },
+    {
+      "type_id": 5,
+      "mnemonic": "TYPE_FRAMEBUFFER_EPHEMERAL",
+      "description": "Buffer de pixeles para proyeccion visual en pantalla humana (Crear -> Mostrar -> Destruir)",
+      "math_invariant": "Ciclo de vida efímero O(1) con invalidacion de generacion",
+      "flags_default": ["FLAG_TEMPORAL"]
+    },
+    {
+      "type_id": 6,
+      "mnemonic": "TYPE_STREAM_DMA_PCIE",
+      "description": "Canal de entrada/salida directa mapeada en memoria (NIC 100GbE / NVMe SSD)",
+      "math_invariant": "Transferencia Zero-Copy por bus PCIe",
+      "flags_default": ["FLAG_PCIE_MAPPED"]
+    }
+  ],
+  "instruction_set": [
+    {
+      "opcode": 1,
+      "mnemonic": "OP_ROT_LIE",
+      "inputs": ["FatPtr:source_tensor", "FatPtr:rotor_operator"],
+      "output": "FatPtr:dest_tensor",
+      "asm_template": "vmovupd ymm1, [rsi] ; vmulpd ymm2, ymm1, ymm_cos ; vsubpd ymm4, ymm2, ymm_sin ; vmovupd [rdi], ymm4",
+      "purpose": "Procesamiento y transformacion de estado continuo"
+    },
+    {
+      "opcode": 2,
+      "mnemonic": "OP_RETRACT_STIEFEL",
+      "inputs": ["FatPtr:target_tensor"],
+      "output": "FatPtr:target_tensor",
+      "asm_template": "vfmadd231pd ymm_norm ; vsqrtpd ; vdivpd ; vbroadcastsd ; vmulpd",
+      "purpose": "Anclaje ortonormal compensado Neumaier (eliminacion de deriva de silicio <= 1e-15)"
+    },
+    {
+      "opcode": 3,
+      "mnemonic": "OP_PROJECT_GRASSMANN",
+      "inputs": ["FatPtr:source_tensor", "FatPtr:base_subspace"],
+      "output": "FatPtr:dest_tensor",
+      "asm_template": "vfmadd231pd ymm_dot ; vextractf128 ; vhaddpd ; vbroadcastsd ; vmulpd",
+      "purpose": "Filtrado, indexacion y busqueda de subespacios invariantes"
+    },
+    {
+      "opcode": 4,
+      "mnemonic": "OP_CLIFFORD_MULT",
+      "inputs": ["FatPtr:multivector_a", "FatPtr:multivector_b"],
+      "output": "FatPtr:dest_multivector",
+      "asm_template": "vmulpd ymm_prod ; vaddpd ymm_sum",
+      "purpose": "Fusion de fuentes de datos heterogeneas sin colision dimensional"
+    },
+    {
+      "opcode": 5,
+      "mnemonic": "OP_BIFURCATE_LYAPUNOV",
+      "inputs": ["FatPtr:state_tensor", "FatPtr:attractor_a", "FatPtr:attractor_b"],
+      "output": "BranchTarget (Offset de instruccion)",
+      "asm_template": "vfmadd231pd ymm_ea ; vfmadd231pd ymm_eb ; vsubpd ; vcomisd ; jbe / ja",
+      "purpose": "Toma de decisiones continua en lugar de if/else booleano tradicional"
+    },
+    {
+      "opcode": 6,
+      "mnemonic": "OP_TRANSFER_DMA",
+      "inputs": ["FatPtr:pcie_src", "FatPtr:arena_dest", "uint64:byte_length"],
+      "output": "Status (Exit Code 0)",
+      "asm_template": "rep movsq / vmovdqa64 burst",
+      "purpose": "Entrada/Salida a velocidad de bus PCIe (Red / NVMe) sin kernel OS"
+    },
+    {
+      "opcode": 7,
+      "mnemonic": "OP_DESTROY_EPHEMERAL",
+      "inputs": ["FatPtr:target_slab"],
+      "output": "None",
+      "asm_template": "inc byte [r_slab + 10]",
+      "purpose": "Destruccion instantanea en O(1) e invalidacion de punteros sin GC"
+    },
+    {
+      "opcode": 8,
+      "mnemonic": "OP_HALT_STABLE",
+      "inputs": [],
+      "output": "Exit Code 0",
+      "asm_template": "mov rax, 60 ; xor rdi, rdi ; syscall",
+      "purpose": "Fin de ejecucion / Punto fijo alcanzado"
+    }
+  ],
+  "control_flow_axioms": {
+    "loop_model": "Convergencia por gradiente de energia ||Delta X|| < epsilon o contador max_iters en RCX",
+    "error_model": "Cero excepciones de texto (try/catch). Banderas de deriva de silicio en registro RAX (0 = OK, >0 = Deriva detectada)",
+    "composition": "Encadenamiento de grafos mediante FatPtrs en registros RDI, RSI, RDX, R8, R9"
+  }
+}
