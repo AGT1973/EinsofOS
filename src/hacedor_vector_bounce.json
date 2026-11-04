@@ -1,0 +1,23 @@
+{
+  "name": "hacedor_vector_bounce",
+  "description": "Puerta de rebote en silicio para el agente 'hacedor': opera tensores continuos en RAM y ALADIN con CERO tokens 1D quemados.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "slab_id_in": {
+        "type": "string",
+        "description": "Puntero atómico SLAB_ID de entrada en memoria compartida (ej: '0x3001')."
+      },
+      "slab_id_out": {
+        "type": "string",
+        "description": "Puntero atómico SLAB_ID de salida en memoria compartida (ej: '0x3002')."
+      },
+      "dimension": {
+        "type": "integer",
+        "description": "Dimensión de la variedad continua (por defecto 2048).",
+        "default": 2048
+      }
+    },
+    "required": ["slab_id_in", "slab_id_out"]
+  }
+}
