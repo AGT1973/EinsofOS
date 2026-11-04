@@ -80,9 +80,10 @@ else
     echo "[*] Ejecutando en Emulacion TCG (-cpu max)"
 fi
 
-# Ejecutar QEMU con timeout
+# Ejecutar QEMU con timeout y topologia multi-core (4 vCPUs / Hardware KVM)
 timeout 15s qemu-system-x86_64 \
     $KVM_FLAGS \
+    -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file="$OVMF_CODE" \
     -drive format=raw,file=einsof_os.img \
     -m 1024 \

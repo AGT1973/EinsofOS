@@ -19,6 +19,7 @@ if os.path.exists(PPM_PATH):
 cmd = [
     "qemu-system-x86_64",
     "-enable-kvm", "-cpu", "host",
+    "-smp", "4",
     "-drive", "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd",
     "-drive", "format=raw,file=/root/einsof_baremetal/boot/einsof_os.img",
     "-m", "1024",
@@ -26,11 +27,11 @@ cmd = [
     "-display", "none"
 ]
 
-print("[*] Iniciando QEMU con hardware KVM...")
+print("[*] Iniciando QEMU con hardware KVM y SMP 4 Cores...")
 p = subprocess.Popen(cmd)
 
-# Esperar a que UEFI bootee y llegue a la pantalla del dashboard (~3.5 segundos)
-time.sleep(3.5)
+# Esperar a que UEFI bootee, despierte los nucleos y ejecute los comandos del shell (~5.0 segundos)
+time.sleep(5.2)
 
 print("[*] Conectando a QEMU Monitor para screendump...")
 try:
