@@ -117,6 +117,13 @@ def main():
     # uefi
     subparsers.add_parser("uefi", help="Informacion y estado del bootloader bare-metal UEFI")
 
+    # mcp
+    p_mcp = subparsers.add_parser("mcp", help="Servidor MCP Soberano para conectar IAs externas")
+    p_mcp.add_argument("--test", action="store_true", help="Ejecutar auto-test del servidor MCP")
+
+    # sentinel
+    subparsers.add_parser("sentinel", help="Ejecuta el ciclo autonomo del Centinela IA (BBDD + Failover)")
+
     args = parser.parse_args()
 
     if args.command == "check":
@@ -128,6 +135,17 @@ def main():
     elif args.command == "flash":
         from einsof_usb_flasher import main as flash_main
         sys.exit(flash_main())
+    elif args.command == "sentinel":
+        from einsof_ai_sentinel import run_ai_sentinel
+        sys.exit(run_ai_sentinel())
+    elif args.command == "mcp":
+        from einsof_mcp_server import run_self_test, main as mcp_main
+        if args.test:
+            run_self_test()
+            sys.exit(0)
+        else:
+            mcp_main()
+            sys.exit(0)
     elif args.command == "uefi":
         print("=" * 70)
         print("  EINSOF OS: BOOTLOADER NATIVO BARE-METAL UEFI (64-BIT)")

@@ -19,16 +19,17 @@
         .controls {
             margin-bottom: 20px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             flex-wrap: wrap;
             justify-content: center;
+            max-width: 1000px;
         }
         button {
             background-color: #313244;
             color: #cdd6f4;
             border: 2px solid #89b4fa;
-            padding: 12px 20px;
-            font-size: 15px;
+            padding: 10px 16px;
+            font-size: 14px;
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
@@ -38,17 +39,22 @@
             background-color: #89b4fa;
             color: #11111b;
         }
+        .btn-green { border-color: #a6e3a1; color: #a6e3a1; }
+        .btn-green:hover { background-color: #a6e3a1; color: #11111b; }
+        .btn-red { border-color: #f38ba8; color: #f38ba8; }
+        .btn-red:hover { background-color: #f38ba8; color: #11111b; }
         .screen-container {
             border: 2px solid #45475a;
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             background: #1e1e2e;
+            max-width: 900px;
         }
-        img { display: block; max-width: 100%; height: auto; }
+        img { display: block; width: 100%; height: auto; }
         .meta-card {
             margin-top: 20px;
-            max-width: 800px;
+            max-width: 850px;
             background: #1e1e2e;
             padding: 15px 25px;
             border-radius: 8px;
@@ -57,38 +63,41 @@
     </style>
 </head>
 <body>
-    <h1>🌌 EinsofOS: Visor de Pantallas Bare-Metal</h1>
-    <p class="subtitle">Renderizado de Silicio 800x600 ARGB8888 • Hot-Reloading en Caliente • Cero C</p>
+    <h1>🌌 EinsofOS: Visor de Pantallas Bare-Metal y MCP</h1>
+    <p class="subtitle">Renderizado de Silicio 800x600 & 1280x800 ARGB • Hot-Reloading en Caliente • PostgreSQL 16 • Cero C</p>
 
     <div class="controls">
-        <button onclick="showScreen('pantalla1_login.bmp', 'Pantalla 1: Acceso / Login (Efímera en RAM)')">1. Login Efímero</button>
-        <button onclick="showScreen('pantalla2_dashboard.bmp', 'Pantalla 2: Dashboard Central (Tras Validación BBDD)')">2. Dashboard Central</button>
-        <button onclick="showScreen('pantalla3_satellite_failover.bmp', 'Pantalla 3: Failover Satelital Autónomo (Hot-Reload en Vivo)')">3. Failover Satelital en Caliente</button>
-        <button onclick="showScreen('uefi_screen.bmp', 'Captura Bare-Metal UEFI GOP: Arranque Físico en Silicio (1280x800)')" style="border-color: #a6e3a1; color: #a6e3a1;">4. Captura Física UEFI GOP (1280x800)</button>
+        <button onclick="showScreen('pantalla1_login.bmp', '1. Login Efímero', 'login')">1. Login Efímero</button>
+        <button onclick="showScreen('pantalla2_dashboard_autorizado.bmp', '2. Sesión Autorizada (PostgreSQL 16 MCP)', 'auth')" class="btn-green">2. Autorizado BBDD (Ariel)</button>
+        <button onclick="showScreen('pantalla_rejection.bmp', '3. Rechazo de Seguridad (SELECT Negativo)', 'reject')" class="btn-red">3. Rechazo BBDD (Intruso)</button>
+        <button onclick="showScreen('pantalla3_satellite_failover.bmp', '4. Failover Satelital Autónomo (Hot-Reload en Vivo)', 'failover')">4. Failover en Vivo</button>
+        <button onclick="showScreen('pantalla2_dashboard.bmp', '5. Dashboard General del Sistema', 'dashboard')">5. Dashboard General</button>
+        <button onclick="showScreen('uefi_screen.bmp', '6. Captura Física UEFI GOP en Silicio (1280x800)', 'uefi')" class="btn-green">6. Captura FÍSICA UEFI GOP</button>
     </div>
 
     <div class="screen-container">
-        <img id="screenImg" src="pantalla3_satellite_failover.bmp" alt="Pantalla Einsof">
+        <img id="screenImg" src="pantalla2_dashboard_autorizado.bmp" alt="Pantalla Einsof">
     </div>
 
     <div class="meta-card">
-        <h3 id="screenTitle" style="color: #a6e3a1; margin-top: 0;">Pantalla 3: Failover Satelital Autónomo (Hot-Reload en Vivo)</h3>
-        <p id="screenDesc"><strong>Hot-Patching de Silicio:</strong> La IA analizó la caída de SNR del Satélite Alfa (< 12 dB) y conmutó el puntero de red al Satélite Beta en tiempo real usando la instrucción atómica x86_64 <code>xchg</code> (0.3 nanosegundos). El Framebuffer de pantalla se actualizó instantáneamente sin reiniciar el servidor.</p>
+        <h3 id="screenTitle" style="color: #a6e3a1; margin-top: 0;">2. Sesión Autorizada (PostgreSQL 16 MCP)</h3>
+        <p id="screenDesc"><strong>Validación Exitosa en Base de Datos:</strong> El servidor MCP ejecutó <code>SELECT is_authorized, clearance_level, role_description FROM einsof_auth_registry WHERE user_id = 'ariel_einsof'</code> en PostgreSQL 16. Tras validar el hash SHA-256 de la credencial, el Núcleo destruyó el Slab efímero de login y generó esta pantalla asignando el puntero de memoria Arena R15.</p>
     </div>
 
     <script>
-        function showScreen(filename, title) {
+        const descriptions = {
+            'login': '<strong>Protocolo Efímero:</strong> Pantalla inicial de autenticación en RAM. Al validar las credenciales soberanas, su Slab se invalida en O(1) incrementando el contador generacional.',
+            'auth': '<strong>Validación Exitosa en Base de Datos:</strong> El servidor MCP ejecutó <code>SELECT is_authorized, clearance_level, role_description FROM einsof_auth_registry WHERE user_id = \'ariel_einsof\'</code> en PostgreSQL 16. Tras validar el hash SHA-256 de la credencial, el Núcleo destruyó el Slab efímero de login y generó esta pantalla asignando el puntero de memoria Arena R15.',
+            'reject': '<strong>Seguridad de Silicio Activa:</strong> El MCP ejecutó el SELECT para el usuario intruso <code>guest_unauthorized</code>. Al recibir <code>is_authorized = false</code>, el Núcleo generó en tiempo real esta pantalla de rechazo, bloqueó los puertos de enlace y registró el evento de auditoría.',
+            'failover': '<strong>Hot-Patching de Silicio por la IA:</strong> La IA analizó la serie de telemetría de SNR (< 12 dB) con herramientas estadísticas simples. Al detectar la salida de rango orbital, conmutó atómicamente el puntero en RAM usando <code>xchg</code> (0.3 nanosegundos) y regeneró el Framebuffer sin detener el servidor.',
+            'dashboard': '<strong>Dashboard General de Servidor:</strong> Telemetría en tiempo real de nodos AMD A4-6300 (Host) y ALADIN (Debian 13), memoria Arena R15 y precisión exacta COBOL sin error de coma flotante.',
+            'uefi': '<strong>Captura Real de Hardware UEFI GOP:</strong> Renderizado físico directamente sobre el Linear Framebuffer de video (0x80000000, 1280x800 a 32-bit ARGB) booteando directamente desde el firmware UEFI x86_64 en el nodo ALADIN con aceleración KVM nativa. Tipografía bitmap 8x16, telemetría y benchmark SIMD ejecutados sin ningún sistema operativo subyacente.'
+        };
+
+        function showScreen(filename, title, key) {
             document.getElementById('screenImg').src = filename;
             document.getElementById('screenTitle').innerText = title;
-            if (filename.includes('uefi')) {
-                document.getElementById('screenDesc').innerHTML = '<strong>Captura Real de Hardware UEFI GOP:</strong> Renderizado físico directamente sobre el Linear Framebuffer de video (0x80000000, 1280x800 a 32-bit ARGB) booteando directamente desde el firmware UEFI x86_64 en el nodo ALADIN con aceleración KVM. Tipografía bitmap 8x16, telemetría y benchmark SIMD ejecutados sin ningún sistema operativo subyacente.';
-            } else if (filename.includes('login')) {
-                document.getElementById('screenDesc').innerHTML = '<strong>Protocolo Efímero:</strong> Al autenticar con éxito mediante el MCP en PostgreSQL 16 y proyección Stiefel, el Slab de Pantalla 1 se destruye en O(1) por incremento generacional.';
-            } else if (filename.includes('dashboard')) {
-                document.getElementById('screenDesc').innerHTML = '<strong>Dashboard de Silicio:</strong> Telemetría en tiempo real de nodos ALADIN, memoria Arena R15 y precisión exacta COBOL sin error de coma flotante.';
-            } else {
-                document.getElementById('screenDesc').innerHTML = '<strong>Hot-Patching de Silicio:</strong> La IA analizó la caída de SNR del Satélite Alfa (< 12 dB) y conmutó el puntero de red al Satélite Beta en tiempo real usando la instrucción atómica x86_64 <code>xchg</code> (0.3 nanosegundos). Cero paquetes perdidos.';
-            }
+            document.getElementById('screenDesc').innerHTML = descriptions[key] || '';
         }
     </script>
 </body>
