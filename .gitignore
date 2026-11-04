@@ -4,3 +4,6 @@ __pycache__/
 *.so
 boot/*.img
 boot/*.ppm
+
+# Backups locales con claves API en texto plano: NO versionar
+backups/error_02_ab_test_20261104/
