@@ -30,8 +30,8 @@ cmd = [
 print("[*] Iniciando QEMU con hardware KVM y SMP 4 Cores...")
 p = subprocess.Popen(cmd)
 
-# Esperar a que UEFI bootee, despierte los nucleos y ejecute los comandos del shell (~5.0 segundos)
-time.sleep(5.2)
+# Esperar a que UEFI bootee, despierte los nucleos y ejecute los comandos del shell (~6.8 segundos)
+time.sleep(6.8)
 
 print("[*] Conectando a QEMU Monitor para screendump...")
 try:

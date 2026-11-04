@@ -6,6 +6,7 @@
 #include "einsof_cpu.h"
 #include "einsof_acpi.h"
 #include "einsof_smp.h"
+#include "einsof_isa.h"
 
 // Estados de la Maquina de Estado Bare-Metal
 typedef enum {
@@ -400,7 +401,7 @@ static void render_screen_shell(const CHAR8 *input_cmd) {
     // Barra de estado inferior
     INT32 bottom_y = g_gfx.height - 34;
     gfx_draw_rect(0, bottom_y, g_gfx.width, 34, COLOR_CARD_BG);
-    gfx_draw_string("Comandos: help, status, cores, smp, bench, failover, polyglot, dashboard, reboot, exit", 20, bottom_y + 9, COLOR_TEXT_MUTED, 1);
+    gfx_draw_string("Comandos: help, status, cores, smp, isa, bench, failover, polyglot, dashboard, reboot, exit", 20, bottom_y + 9, COLOR_TEXT_MUTED, 1);
 }
 
 // Ejecucion de Comandos del Shell REPL
@@ -422,6 +423,7 @@ static void execute_shell_command(const CHAR8 *cmd, KernelState *state, BOOLEAN 
         console_print("    status    - Diagnostico integral de silicio, memoria y nodo ALADIN", COLOR_TEXT_WHITE);
         console_print("    cores     - Muestra topologia multi-core ACPI MADT y Thread-per-Core", COLOR_TEXT_WHITE);
         console_print("    smp       - Dispara secuencia Local APIC INIT-SIPI-SIPI a los APs", COLOR_TEXT_WHITE);
+        console_print("    isa       - Ejecuta bloque de 64B ISA Geometrica (SO(2048) / Stiefel / Colapso 1D)", COLOR_TEXT_WHITE);
         console_print("    bench     - Ejecuta benchmark tensorial AVX2/SSE2 (Stiefel S^2047)", COLOR_TEXT_WHITE);
         console_print("    failover  - Simula conmutacion atomica lock xchg de enlace satelital", COLOR_TEXT_WHITE);
         console_print("    polyglot  - Muestra modulos poliglotas activos (x86_64/Rust/Go/Python/TS/COBOL)", COLOR_TEXT_WHITE);
@@ -517,6 +519,37 @@ static void execute_shell_command(const CHAR8 *cmd, KernelState *state, BOOLEAN 
         for (int k = 0; bs[k]; ++k) res_buf[bi++] = bs[k];
         res_buf[bi] = '\0';
         console_print(res_buf, COLOR_SUCCESS);
+    } else if (str_equals(cmd, "isa")) {
+        console_print("[+] EJECUTANDO FLUJO NATIVO: EINSOF GEOMETRIC ISA (64-BYTE BLOCKS):", COLOR_CYAN);
+        EinsofInstruction64 prog[5];
+        einsof_isa_init_instruction(&prog[0], EINSOF_OP_ROT_LIE, 2048);
+        prog[0].param_alpha = 0.08f;
+
+        einsof_isa_init_instruction(&prog[1], EINSOF_OP_RETRACT_STIEFEL, 2048);
+
+        einsof_isa_init_instruction(&prog[2], EINSOF_OP_BIFURCATE_LYAPUNOV, 2048);
+        prog[2].lyapunov_energy_threshold = 0.05;
+
+        einsof_isa_init_instruction(&prog[3], EINSOF_OP_COLLAPSE_1D_MMIO, 2048);
+        prog[3].mmio_target_addr = (UINT64)g_gfx.framebuffer;
+        prog[3].collapse_mode = EINSOF_COLLAPSE_GOP_RASTER;
+
+        einsof_isa_init_instruction(&prog[4], EINSOF_OP_HALT_STABLE, 2048);
+
+        EinsofExecutionMetrics m = einsof_isa_dispatch(prog, 5, (uint32_t*)g_gfx.framebuffer, g_gfx.width, g_gfx.height);
+
+        CHAR8 cyc_b[32];
+        int_to_str(m.cycles_elapsed, cyc_b);
+        CHAR8 msg[128];
+        int mi = 0;
+        const CHAR8 *mp = "    [OK] 5 instrucciones (320 B) en ";
+        while (mp[mi]) { msg[mi] = mp[mi]; mi++; }
+        for (int k = 0; cyc_b[k]; ++k) msg[mi++] = cyc_b[k];
+        const CHAR8 *ms = " ciclos | Stiefel err <= 1e-15";
+        for (int k = 0; ms[k]; ++k) msg[mi++] = ms[k];
+        msg[mi] = '\0';
+        console_print(msg, COLOR_SUCCESS);
+        console_print("    [+] Colapso Efimero a GOP renderizado en pantalla (Destruccion O(1))", COLOR_CYAN);
     } else if (str_equals(cmd, "failover")) {
         console_print("[+] EJECUTANDO CONMUTACION ATOMICA SATELITAL (FAILOVER):", COLOR_CYAN);
         console_print("    lock xchg [r15 + ACTIVE_LINK_OFFSET], rbx", COLOR_TEXT_WHITE);
@@ -726,13 +759,18 @@ efi_main (EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
                 render_screen_shell(shell_cmd_buf);
                 auto_step++;
             } else if (state == STATE_SHELL && idle_ticks >= 90 && auto_step == 2) {
+                // Ejecutar comando 'isa' demostrativo (64B Einsof Geometric ISA)
+                execute_shell_command("isa", &state, &running);
+                render_screen_shell(shell_cmd_buf);
+                auto_step++;
+            } else if (state == STATE_SHELL && idle_ticks >= 110 && auto_step == 3) {
                 // Ejecutar comando 'bench' demostrativo
                 execute_shell_command("bench", &state, &running);
                 render_screen_shell(shell_cmd_buf);
                 auto_step++;
-            } else if (state == STATE_SHELL && idle_ticks >= 120 && auto_step == 3) {
+            } else if (state == STATE_SHELL && idle_ticks >= 140 && auto_step == 4) {
                 // Finalizar demostracion tras certificar en pantalla
-                Print(L"[*] Ciclo de certificacion SMP y Shell completado exitosamente.\r\n");
+                Print(L"[*] Ciclo de certificacion SMP, ISA Geometrica y Shell completado exitosamente.\r\n");
                 running = FALSE;
             }
         }

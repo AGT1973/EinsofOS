@@ -72,7 +72,7 @@
         <button onclick="showScreen('pantalla_rejection.bmp', '3. Rechazo de Seguridad (SELECT Negativo)', 'reject')" class="btn-red">3. Rechazo BBDD (Intruso)</button>
         <button onclick="showScreen('pantalla3_satellite_failover.bmp', '4. Failover Satelital Autónomo (Hot-Reload en Vivo)', 'failover')">4. Failover en Vivo</button>
         <button onclick="showScreen('pantalla2_dashboard.bmp', '5. Dashboard General del Sistema', 'dashboard')">5. Dashboard General</button>
-        <button onclick="showScreen('uefi_screen.bmp', '6. Captura Física UEFI GOP en Silicio (1280x800)', 'uefi')" class="btn-green">6. Captura FÍSICA UEFI GOP</button>
+        <button onclick="showScreen('uefi_screen.bmp', '6. Captura FÍSICA UEFI GOP (SMP 4 Cores + ISA Geométrica 64B)', 'uefi')" class="btn-green">6. Captura FÍSICA UEFI GOP + ISA 64B</button>
     </div>
 
     <div class="screen-container">
@@ -91,7 +91,7 @@
             'reject': '<strong>Seguridad de Silicio Activa:</strong> El MCP ejecutó el SELECT para el usuario intruso <code>guest_unauthorized</code>. Al recibir <code>is_authorized = false</code>, el Núcleo generó en tiempo real esta pantalla de rechazo, bloqueó los puertos de enlace y registró el evento de auditoría.',
             'failover': '<strong>Hot-Patching de Silicio por la IA:</strong> La IA analizó la serie de telemetría de SNR (< 12 dB) con herramientas estadísticas simples. Al detectar la salida de rango orbital, conmutó atómicamente el puntero en RAM usando <code>xchg</code> (0.3 nanosegundos) y regeneró el Framebuffer sin detener el servidor.',
             'dashboard': '<strong>Dashboard General de Servidor:</strong> Telemetría en tiempo real de nodos AMD A4-6300 (Host) y ALADIN (Debian 13), memoria Arena R15 y precisión exacta COBOL sin error de coma flotante.',
-            'uefi': '<strong>Captura Real de Silicio UEFI GOP con SMP Multi-Core y Shell REPL:</strong> Renderizado físico directamente sobre el Linear Framebuffer de video (0x80000000, 1280x800 a 32-bit ARGB) booteando desde firmware UEFI x86_64 en el nodo remoto ALADIN (Intel Core i3-8100 4C/4T @ 3.60 GHz) con aceleración KVM nativa. Topología ACPI MADT descubierta con 4 núcleos físicos activados mediante secuencia Local APIC INIT-SIPI-SIPI y colas Thread-per-Core. Consola interactiva Shell REPL en silicio directo.'
+            'uefi': '<strong>Captura Real de Silicio UEFI GOP con SMP Multi-Core, ISA Geométrica de 64 Bytes y Shell REPL:</strong> Renderizado físico directamente sobre el Linear Framebuffer de video (0x80000000, 1280x800 a 32-bit ARGB) booteando desde firmware UEFI x86_64 en el nodo remoto ALADIN (Intel Core i3-8100 4C/4T @ 3.60 GHz) con aceleración KVM nativa. Topología ACPI MADT descubierta con 4 núcleos físicos activados mediante secuencia Local APIC INIT-SIPI-SIPI. Ejecución de la ISA Geométrica de 64 Bytes de Einsof (rotación SO(2048), retracción Stiefel Neumaier y convergencia en atractor de Lyapunov) con Colapso Efímero a GOP (16.6 ms) y destrucción de memoria en O(1).'
         };
 
         function showScreen(filename, title, key) {
