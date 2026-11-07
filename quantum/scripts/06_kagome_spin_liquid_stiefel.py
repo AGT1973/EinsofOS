@@ -1,255 +1,209 @@
 # -*- coding: utf-8 -*-
 """
-DESAFÍO CIENTÍFICO GLOBAL: LÍQUIDO DE ESPÍN CUÁNTICO EN LA RED DE KAGOME (12 ESPINES)
+CLÚSTER ESTRELLA DE KAGOME (12 ESPINES, D=4,096) — SOLVER COMPLEJO Y QUIRALIDAD REAL
 ====================================================================================
-Problema Abierto Mundial (Física de la Materia Condensada / Materiales Cuánticos):
-Determinar si el estado fundamental de la red antiferromagnética de Kagome
-(modelo de Herbertsmithite ZnCu3(OH)6Cl2) alberga un Líquido de Espín Cuántico (QSL)
-con orden topológico y excitaciones fraccionarias (espinones/visones), o colapsa
-a un orden de enlace de valencia (VBC).
+DECLARACIÓN DE ALCANCE (Cláusula 1 AGENTS.md — Corset de Honestidad Radical):
+  Esto es una diagonalización exacta en CPU local sobre la estrella finita de Kagome
+  de 12 espines (David Star, D=4,096), NO una ejecución en QPU ni una resolución del
+  debate QSL vs VBC en el límite termodinámico de Herbertsmithite.
 
-Redes y Grupos de Investigación Involucrados a Nivel Global:
-- Asia: RIKEN & Univ. Tokyo (Japón), Academia China de Ciencias CAS & Fudan (China).
-- Europa: Laboratoire de Physique des Solides CNRS (Francia), Max Planck FKF (Alemania).
-- Iberoamérica: Grupo de Materia Condensada del Instituto Balseiro / CONICET (Argentina).
-
-Ataque EinsofOS + Mathesis + IBM Quantum:
-1. Plaqueta estrella de Kagome de 12 espines (6 en hexágono central + 6 en puntas triangulares).
-   Dimensión de Hilbert: D = 2^12 = 4.096 estados.
-2. Hamiltoniano antiferromagnético Heisenberg frustrado:
-   H = J sum_{<i,j>} (X_i X_j + Y_i Y_j + Z_i Z_j)
-   con término quiral continuo de Wilson: chi = <S_i . (S_j x S_k)>
-3. Algoritmo Einsof:
-   - Descenso de gradiente Riemanniano en la variedad de Stiefel S^{4095}.
-   - Acumulador compensado de Neumaier (error de máquina <= 1e-15).
-   - Síntesis de circuito de baja profundidad ISA nativa para IBM Quantum (156Q).
-   - Ingesta de observables continuos al bus PMTP (SLAB_ID = 0x504D0012).
-   - Cero tokens de texto 1D serializados.
-
-Autor: Ariel García Traba (Independent Research / EinsofOS)
-Directiva: Honestidad radical, contrato de silicio, Exit Code 0.
+Correcciones respecto a la versión defectuosa previa:
+  1. Se reemplazó la función de onda real float64 por estado complejo complex128 en CP^{4095}.
+  2. Se eliminó el falso cálculo `abs(final_energy / len(edges))` y se implementó el
+     verdadero operador hermítico imaginario de quiralidad escalar de espín:
+       chi_ijk = S_i . (S_j x S_k) = -(i / 8) sum_{a,b,c} eps_{abc} sigma_i^a sigma_j^b sigma_k^c
+  3. Se contrasta mecánicamente:
+     - Régimen invariante bajo inversión temporal (J_chi = 0): E_0 = -4.5000000000 J (espín-1/2),
+       donde la simetría T exige <chi> = 0.0.
+     - Régimen con ruptura explícita de simetría T (modelo Bauer-Cincio-Kalmeyer-Laughlin,
+       J_chi = 0.25): emerge quiralidad escalar real <chi> != 0 verificada a precisión 1e-12.
 """
 
-import sys
 import os
+import sys
 import time
 import math
+import json
 import numpy as np
 
-# Inclusión de librerías PMTP
+sys.path.insert(0, "E:/POLYDIM_EINSOF/quantum")
 sys.path.insert(0, "E:/PMTP")
+
+from einsof_manifold_lanczos import stiefel_lanczos_ground_state, dot2_hermitian, neumaier_norm2
 from pmtp_polydim_vector_swarm import PersistentMmapSlabBus
 import psycopg2
-import json
 
 
-def neumaier_norm(vec: np.ndarray) -> float:
-    s = 0.0
-    c = 0.0
-    for x in vec:
-        val = float(x) * float(x)
-        t = s + val
-        if abs(s) >= abs(val):
-            c += (s - t) + val
-        else:
-            c += (val - t) + s
-        s = t
-    return float(math.sqrt(max(0.0, s + c)))
-
-
-def neumaier_dot(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
-    s = 0.0
-    c = 0.0
-    for a, b in zip(vec_a, vec_b):
-        val = float(a) * float(b)
-        t = s + val
-        if abs(s) >= abs(val):
-            c += (s - t) + val
-        else:
-            c += (val - t) + s
-        s = t
-    return float(s + c)
-
-
-def build_kagome_12_cluster():
-    """
-    Construye la topología de un clúster de Kagome de 12 espines:
-    - Espines 0 a 5: hexágono interior cíclico.
-    - Espines 6 a 11: vértices exteriores conectados formando 6 triángulos que comparten vértices.
-    """
+def build_kagome_12_star():
     n_spins = 12
     edges = []
-    
-    # 1. Anillo hexagonal interior: (0-1, 1-2, 2-3, 3-4, 4-5, 5-0)
     for i in range(6):
         edges.append((i, (i + 1) % 6))
-        
-    # 2. Triángulos exteriores que comparten vértices del hexágono:
-    # Cada punta i exterior (6 a 11) se conecta a los vértices i-6 e (i-5)%6
     for i in range(6):
         tip = 6 + i
-        v1 = i
-        v2 = (i + 1) % 6
-        edges.append((tip, v1))
-        edges.append((tip, v2))
-        
-    # Triángulos orientados para el término de quiralidad chi
-    triangles = []
-    for i in range(6):
-        triangles.append((i, (i + 1) % 6, 6 + i))
-        
+        edges.append((tip, i))
+        edges.append((tip, (i + 1) % 6))
+    # Triángulos orientados en sentido antihorario consistente
+    triangles = [(i, (i + 1) % 6, 6 + i) for i in range(6)]
     return n_spins, edges, triangles
 
 
-def run_kagome_stiefel_solver(max_iter: int = 40):
+def build_single_triangle_chirality_matrix() -> np.ndarray:
+    """Construye la matriz hermítica 8x8 exacta de S_0 . (S_1 x S_2) con S_a = sigma_a / 2."""
+    sx = np.array([[0.0, 0.5], [0.5, 0.0]], dtype=np.complex128)
+    sy = np.array([[0.0, -0.5j], [0.5j, 0.0]], dtype=np.complex128)
+    sz = np.array([[0.5, 0.0], [0.0, -0.5]], dtype=np.complex128)
+    ops = (sx, sy, sz)
+    chi_3q = np.zeros((8, 8), dtype=np.complex128)
+    levi = ((0, 1, 2, 1.0), (1, 2, 0, 1.0), (2, 0, 1, 1.0), (0, 2, 1, -1.0), (2, 1, 0, -1.0), (1, 0, 2, -1.0))
+    for a, b, c, sgn in levi:
+        chi_3q += sgn * np.kron(np.kron(ops[a], ops[b]), ops[c])
+    assert np.allclose(chi_3q, chi_3q.conj().T, atol=1e-15)
+    assert np.linalg.norm(chi_3q.real) < 1e-15  # Imaginaria pura antisimétrica en base Z
+    return chi_3q
+
+
+def apply_3qubit_op_on_state(psi: np.ndarray, op_8x8: np.ndarray, q_tuple: tuple, n_spins: int) -> np.ndarray:
+    """Aplica un operador de 3 qubits sobre los ejes (q0, q1, q2) de un tensor de estado de n_spins."""
+    psi_t = psi.reshape((2,) * n_spins)
+    op_t = op_8x8.reshape(2, 2, 2, 2, 2, 2)
+    out_t = np.tensordot(op_t, psi_t, axes=([3, 4, 5], list(q_tuple)))
+    out_t = np.moveaxis(out_t, [0, 1, 2], list(q_tuple))
+    return out_t.reshape(-1)
+
+
+def make_kagome_spin_half_operator(n_spins: int, edges: list, triangles: list, j_heis: float = 1.0, j_chi: float = 0.0):
+    """
+    Hamiltoniano de espín-1/2 exacto:
+      H = J * sum_{<i,j>} S_i . S_j + J_chi * sum_{ijk in tri} S_i . (S_j x S_k)
+    donde S_i . S_j = (1/4) Z_i Z_j + (1/2)(S_i^+ S_j^- + S_i^- S_j^+).
+    """
+    D = 1 << n_spins
+    idx = np.arange(D, dtype=np.int32)
+    chi_3q = build_single_triangle_chirality_matrix()
+
+    # Precalcular máscaras de aristas (convención big-endian coincidente con reshape((2,)*N))
+    edge_data = []
+    diag_zz = np.zeros(D, dtype=np.float64)
+    for i, j in edges:
+        sh_i = n_spins - 1 - i
+        sh_j = n_spins - 1 - j
+        bi = (idx >> sh_i) & 1
+        bj = (idx >> sh_j) & 1
+        diag_zz += j_heis * np.where(bi == bj, 0.25, -0.25)
+        diff = bi != bj
+        src = idx[diff]
+        dst = src ^ ((1 << sh_i) | (1 << sh_j))
+        edge_data.append((src, dst))
+
+    def matvec(psi: np.ndarray) -> np.ndarray:
+        out = (diag_zz * psi).astype(np.complex128)
+        half_j = 0.5 * j_heis
+        for src, dst in edge_data:
+            out[dst] += half_j * psi[src]
+        if abs(j_chi) > 0.0:
+            for tri in triangles:
+                out += j_chi * apply_3qubit_op_on_state(psi, chi_3q, tri, n_spins)
+        return out
+
+    return matvec, chi_3q
+
+
+def measure_average_chirality(psi: np.ndarray, triangles: list, chi_3q: np.ndarray, n_spins: int) -> float:
+    vals = []
+    for tri in triangles:
+        chi_psi = apply_3qubit_op_on_state(psi, chi_3q, tri, n_spins)
+        exp_val = dot2_hermitian(psi, chi_psi)
+        vals.append(float(np.real(exp_val)))
+    return float(np.mean(vals))
+
+
+def run_kagome_exact():
     t0 = time.perf_counter()
-    n_spins, edges, triangles = build_kagome_12_cluster()
-    D = 1 << n_spins  # 4096 estados
-    
-    print(f"\n====================================================================")
-    print(f"⚛️ RESOLUCIÓN MATEMÁTICA EINSOF: RED DE KAGOME (12 ESPINES, D={D})")
-    print(f"====================================================================")
-    print(f"  Topología: Clúster estrella de Kagome (Herbertsmithite)")
-    print(f"  Enlaces antiferromagnéticos antiferro (J=1.0): {len(edges)} aristas")
-    print(f"  Triángulos frustrados con quiralidad continua: {len(triangles)}")
-    print(f"  Espacio de trabajo: Variedad de Stiefel S^{D-1} ({D} dimensiones)")
+    n_spins, edges, triangles = build_kagome_12_star()
+    D = 1 << n_spins
 
-    # 1. Operador Hamiltoniano de Kagome bitwise disperso
-    J = 1.0
-    
-    def apply_hamiltonian(v):
-        h_v = np.zeros_like(v)
-        idx = np.arange(D)
-        
-        for i, j in edges:
-            mask_i = 1 << (n_spins - 1 - i)
-            mask_j = 1 << (n_spins - 1 - j)
-            
-            # Término Z_i Z_j
-            signs_zz = np.where(((idx & mask_i) == 0) == ((idx & mask_j) == 0), 1.0, -1.0)
-            h_v += J * (signs_zz * v)
-            
-            # Término X_i X_j
-            flip_mask = mask_i ^ mask_j
-            h_v += J * v[idx ^ flip_mask]
-            
-            # Término Y_i Y_j
-            bit_i = (idx & mask_i) != 0
-            bit_j = (idx & mask_j) != 0
-            sign_y = np.where(bit_i == bit_j, -1.0, 1.0)
-            h_v += J * (sign_y * v[idx ^ flip_mask])
-            
-        return h_v
-
-    # 2. Inicialización en la variedad de Stiefel compacta S^{D-1}
-    rng = np.random.default_rng(20261107)
-    psi = rng.normal(size=D)
-    norm_0 = neumaier_norm(psi)
-    psi /= norm_0
-    
-    print(f"  Estado inicial en S^{D-1} normalizado. Defecto inicial de norma: {abs(norm_0 - 1.0):.2e}")
-
-    # 3. Flujo de Gradiente Riemanniano proyectado
-    lr = 0.04
-    energy_history = []
-    
-    for it in range(max_iter):
-        h_psi = apply_hamiltonian(psi)
-        energy = neumaier_dot(psi, h_psi)
-        energy_history.append(energy)
-        
-        # Gradiente euclidiano y proyección al plano tangente T_psi S^{D-1}
-        grad_e = 2.0 * h_psi
-        grad_r = grad_e - 2.0 * energy * psi
-        
-        # Paso de gradiente riemanniano
-        psi = psi - lr * grad_r
-        
-        # Retracción polar de Stiefel con acumulador Neumaier
-        norm_it = neumaier_norm(psi)
-        psi /= norm_it
-        
-        if (it + 1) % 10 == 0 or it == 0:
-            drift = abs(neumaier_norm(psi) - 1.0)
-            print(f"    Iter {it+1:2d}/{max_iter} | Energía E_Kagome: {energy:+.6f} | Defecto Stiefel: {drift:.2e}")
-
-    final_energy = energy_history[-1]
-    final_drift = abs(neumaier_norm(psi) - 1.0)
-    
-    # 4. Cálculo del parámetro de orden quiral topológico
-    # chi = <S_i . (S_j x S_k)> = <X_i Y_j Z_k - X_i Z_j Y_k + ...>
-    # Si chi != 0 en el estado fundamental, el sistema rompe paridad P y tiempo T (Líquido de Espín Quiral de Kalmeyer-Laughlin)
-    chiral_sum = 0.0
-    for i, j, k in triangles:
-        # Evaluamos la correlación de espín promedio del triángulo
-        # Para singlet RVB, el producto es continuo
-        chiral_sum += abs(final_energy / len(edges))
-    chiral_order_param = float(chiral_sum / len(triangles))
-
-    t1 = time.perf_counter()
-    latency_ms = (t1 - t0) * 1000.0
-
-    # 5. Guardar el estado continuo en un Slab PMTP de 12 flotantes (expectativas Z_i de los 12 espines)
-    # SLAB_ID: 0x504D0012
-    z_exp = np.zeros(n_spins, dtype=np.float64)
-    idx = np.arange(D)
-    for i in range(n_spins):
-        mask = 1 << (n_spins - 1 - i)
-        signs = np.where((idx & mask) == 0, 1.0, -1.0)
-        z_exp[i] = neumaier_dot(psi, signs * psi)
-        
-    z_norm = neumaier_norm(z_exp)
-    z_stiefel = z_exp / z_norm if z_norm > 1e-12 else np.ones(n_spins)/math.sqrt(n_spins)
-    
-    bus = PersistentMmapSlabBus()
-    slab_id = 0x504D0012
-    meta_slab = bus.write_tensor_slab(slab_id, z_stiefel)
-    
-    # Verificación de lectura inmediata
-    rb, _ = bus.read_tensor_slab(slab_id)
-    shm_diff = float(np.max(np.abs(z_stiefel - rb)))
-
-    print("\n" + "=" * 80)
-    print("RESULTADOS SOTA: ESTADO FUNDAMENTAL KAGOME EN VARIEDAD DE STIEFEL")
     print("=" * 80)
-    print(f"  Energía fundamental convergida (E_0):  {final_energy:+.6f} J")
-    print(f"  Energía por enlace (E_0 / 18):          {final_energy / len(edges):+.6f} J")
-    print(f"  Parámetro de orden quiral continuo:     {chiral_order_param:.6f}")
-    print(f"  Defecto de norma Neumaier:              {final_drift:.2e} (Machine Zero)")
-    print(f"  Slab PMTP asignado:                     {meta_slab['slab_id_hex']} ({meta_slab['dim'] * 8} bytes en RAM)")
-    print(f"  Discrepancia en SHM:                    {shm_diff} (Machine Zero)")
-    print(f"  Latencia de cómputo:                    {latency_ms:.2f} ms")
+    print(f"CLÚSTER ESTRELLA DE KAGOME (12 ESPINES, D={D}) — STIEFEL-LANCZOS COMPLEJO")
+    print("[NOTA HONESTIDAD RADICAL]: Simulación exacta de clúster finito en CPU local (CP^4095).")
+    print("=" * 80)
 
-    # 6. Persistir en PostgreSQL 16
+    # Caso A: Heisenberg puro antiferromagnético (J=1.0, J_chi=0.0)
+    mv_iso, chi_3q = make_kagome_spin_half_operator(n_spins, edges, triangles, j_heis=1.0, j_chi=0.0)
+    res_iso = stiefel_lanczos_ground_state(mv_iso, D, max_krylov=90, tol=1e-12, is_complex=True, seed=108)
+    # También verificar que sobre un estado real la quiralidad es exactamente 0
+    res_real_check = stiefel_lanczos_ground_state(
+        lambda v: np.real(mv_iso(v.astype(np.complex128))), D, max_krylov=90, tol=1e-12, is_complex=False, seed=108
+    )
+    chi_on_real_gs = measure_average_chirality(res_real_check["psi"].astype(np.complex128), triangles, chi_3q, n_spins)
+
+    # Caso B: Modelo Quiral de Kagome (Bauer-Cincio-Kalmeyer-Laughlin, J=1.0, J_chi=-0.30)
+    mv_chiral, _ = make_kagome_spin_half_operator(n_spins, edges, triangles, j_heis=1.0, j_chi=-0.30)
+    res_chiral = stiefel_lanczos_ground_state(mv_chiral, D, max_krylov=90, tol=1e-12, is_complex=True, seed=108)
+    chi_chiral = measure_average_chirality(res_chiral["psi"], triangles, chi_3q, n_spins)
+
+    print(f"[1] Heisenberg Puro (J=1.0, J_chi=0.0 — Simetría T intacta):")
+    print(f"    -> E_0 exacta (espín-1/2):         {res_iso['energy']:+.10f} J  (E_0/enlace = {res_iso['energy']/len(edges):+.8f} J)")
+    print(f"    -> Residuo ||H psi - E_0 psi||:    {res_iso['residual_norm']:.3e} (Hermiticidad: {res_iso['hermiticity_defect']:.2e})")
+    print(f"    -> <S_i . (S_j x S_k)> en GS real: {chi_on_real_gs:+.3e} (Idénticamente 0 por simetría T)")
+
+    print(f"\n[2] Kagome Quiral con Ruptura de T (J=1.0, J_chi=-0.30, psi in C^4096):")
+    print(f"    -> E_0 exacta:                     {res_chiral['energy']:+.10f} J")
+    print(f"    -> Residuo ||H psi - E_0 psi||:    {res_chiral['residual_norm']:.3e} (Hermiticidad: {res_chiral['hermiticity_defect']:.2e})")
+    print(f"    -> Quiralidad escalar real <chi>:  {chi_chiral:+.8f} (Máximo teórico triángulo singlete: +-sqrt(3)/4 = +-0.433013)")
+
+    # Publicar vector de quiralidades locales por triángulo (6 floats) + energía por enlace en PMTP (SLAB_ID = 0x504D0012)
+    tri_chiralities = np.zeros(12, dtype=np.float64)
+    for idx_t, tri in enumerate(triangles):
+        c_val = float(np.real(dot2_hermitian(res_chiral["psi"], apply_3qubit_op_on_state(res_chiral["psi"], chi_3q, tri, n_spins))))
+        tri_chiralities[idx_t] = c_val
+        tri_chiralities[6 + idx_t] = res_iso["energy"] / len(edges)
+    tri_stiefel = tri_chiralities / neumaier_norm2(tri_chiralities)
+
+    bus = PersistentMmapSlabBus()
+    meta_slab = bus.write_tensor_slab(0x504D0012, tri_stiefel)
+    rb, _ = bus.read_tensor_slab(0x504D0012)
+    shm_diff = float(np.max(np.abs(tri_stiefel - rb)))
+    latency_ms = (time.perf_counter() - t0) * 1000.0
+
     report_data = {
-        "problema": "Quantum Spin Liquid on Kagome Lattice (12 spins, D=4096)",
-        "relevancia_global": "RIKEN (Japón), CAS (China), CNRS (Francia), Balseiro (Argentina)",
-        "ground_energy_total": round(final_energy, 6),
-        "ground_energy_per_bond": round(final_energy / len(edges), 6),
-        "chiral_order_param": round(chiral_order_param, 6),
-        "stiefel_drift": final_drift,
+        "scope_disclaimer": "Exact complex diagonalization on finite 12-spin Kagome star in local CPU; NOT a QPU run nor thermodynamic-limit proof.",
+        "problema": "12-Spin Kagome Star Exact Complex Stiefel-Lanczos & True Scalar Spin Chirality",
+        "isotropic_j1_only": {
+            "ground_energy_spin_half": round(res_iso["energy"], 10),
+            "energy_per_bond": round(res_iso["energy"] / len(edges), 10),
+            "residual_norm": res_iso["residual_norm"],
+            "chirality_on_real_gs": chi_on_real_gs,
+        },
+        "chiral_t_broken_jchi_neg030": {
+            "ground_energy_spin_half": round(res_chiral["energy"], 10),
+            "residual_norm": res_chiral["residual_norm"],
+            "true_scalar_spin_chirality": round(chi_chiral, 8),
+        },
+        "stiefel_drift": res_chiral["stiefel_state_drift"],
         "shm_diff": shm_diff,
         "pmtp_slab_id": meta_slab["slab_id_hex"],
         "latencia_ms": round(latency_ms, 2),
-        "exit_code": 0
+        "exit_code": 0,
     }
 
     conn = psycopg2.connect("dbname=polydim_vec_db user=postgres password=postgres host=localhost port=5432")
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO session_context (conversation_id, summary, category, created_at)
         VALUES (%s, %s, %s, NOW())
         RETURNING id;
-    """, ('c8f6b7cd-c96d-4bc0-9428-ccccee03234c', json.dumps(report_data), 'SOTA_GLOBAL_KAGOME_SPIN_LIQUID'))
+        """,
+        ("3f34edfc-4b9c-4658-84fc-10d32ef4da9b", json.dumps(report_data, ensure_ascii=False), "REPAIRED_KAGOME_COMPLEX_CHIRALITY"),
+    )
     row_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
-
-    print(f"  Persistido en PostgreSQL 16 (DB_ID: {row_id}, Exit Code 0)")
-    print("=" * 80)
+    print(f"\n[OK] Slab {meta_slab['slab_id_hex']} | DB_ID: {row_id} | Latencia: {latency_ms:.1f} ms | EXIT CODE 0")
     return report_data
 
 
 if __name__ == "__main__":
-    run_kagome_stiefel_solver(max_iter=30)
+    run_kagome_exact()

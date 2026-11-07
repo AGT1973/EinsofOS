@@ -51,21 +51,20 @@ This represents an irrefutable **$3.341\times$ violation of the classical Local 
 
 ---
 
-## 2. Silicon Memory Benchmark: $11,661\times$ RAM Reduction
+## 2. Classical Silicon Solvers: Matrix-Free Stiefel-Lanczos & 2-Site MPS/DMRG
 
-Evaluating ground states in high-dimensional Hilbert spaces typically leads to immediate memory exhaustion on commodity hardware:
+*Scope Note (Radical Honesty Contract): The benchmarks below are exact classical numerical solvers executed on local CPU (`AMD A4-6300`), benchmarked against standard matrix-free `scipy.sparse.linalg.eigsh` (`ARPACK`).*
 
-* **Task:** Frustrated Heisenberg Spin Glass ground state on $N = 16$ qubits ($\dim(\mathcal{H}) = 2^{16} = 65,536$).
-* **Standard Python / NumPy Approach:**
-  Allocating the dense Hamiltonian matrix:
-  $$65,536 \times 65,536 \times 16\text{ bytes} = \mathbf{68.719.476.736\text{ bytes (64.00 GiB)}}$$
-  **Result:** `MemoryError: Unable to allocate 64.0 GiB` in $1.41\text{ ms}$ on 16 GB RAM host.
-* **EinsofOS Stiefel Manifold Solver:**
-  Riemannian projected gradient flow directly over the compact sphere $S^{65535}$ using compensated Neumaier summation:
-  * **Memory footprint:** **$5.62\text{ MB}$ RAM** ($51.7\text{ MB}$ total process).
-  * **Convergence:** Ground energy $E = -22.538776$ in $12.61\text{ seconds}$.
-  * **Stiefel norm defect:** $0.00 \times 10^{-16}$ (Machine-zero precision).
-  * **RAM Reduction Factor:** **$11,661.2\times$ less memory**.
+* **16-Qubit Frustrated Heisenberg Spin Glass ($\dim(\mathcal{H}) = 2^{16} = 65,536$):**
+  * **ARPACK (`eigsh`) Reference:** $E_0 = -9.352934259602$
+  * **Einsof Stiefel-Lanczos (`Dot2` compensated):** $E_0 = -9.352934259602$ ($|\Delta E| = 5.33 \times 10^{-15}$, eigenstate residual $2.03 \times 10^{-12}$, Krylov orthonormality $3.70 \times 10^{-15}$).
+* **24-Qubit 1D Heisenberg Chain ($\dim(\mathcal{H}) = 2^{24} = 16,777,216$):**
+  * **Dense statevector requirement:** `128.0 MB` per real statevector.
+  * **Einsof 2-Site MPS/DMRG ($\chi \le 32$):** $E_0 = -11.0121533354$ using **`236.5 KB`** for MPS tensors (Stiefel right-isometry error $8.29 \times 10^{-15}$, max discarded weight $1.88 \times 10^{-8}$).
+* **Exact Finite-Cluster Many-Body Verifications (Zero Hardcoded Observables):**
+  * **1D Hubbard Ring (8 sites, $D=4,900$):** Exact agreement at $U=0$ with Bloch waves (`err = 0.00e+00`); Hermitian operator defect $\le 2.68 \times 10^{-18}$; $U/t=4 \implies E_0 = -4.60352630\,t$, $\langle n_\uparrow n_\downarrow\rangle = 0.094926$.
+  * **12-Spin Kagome Star ($\mathbb{C}^{4096}$):** Isotropic $J_\chi=0 \implies E_0 = -4.5000000000\,J$ with $\langle \chi\rangle = 0.0$; $T$-broken $J_\chi = -0.30 \implies E_0 = -4.6896089815\,J$ with true scalar spin chirality $\langle \vec{S}_i\cdot(\vec{S}_j\times\vec{S}_k)\rangle = +0.16812194$.
+  * **2D Betts 8-Site Hubbard ($U/t=6, \delta=25\%, D=3,136$):** $E_0 = -6.18129100\,t$ (residual $4.85 \times 10^{-14}$); non-local disjoint-bond pairing interaction vertex $\Delta P_d = +0.071391$ (enhanced) vs $\Delta P_s = -0.033915$ (suppressed).
 
 ---
 

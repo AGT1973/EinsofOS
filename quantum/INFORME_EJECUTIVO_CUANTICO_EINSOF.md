@@ -16,7 +16,7 @@ Entre el 3 y el 7 de noviembre de 2026, el proyecto POLYDIM-EINSOF completó una
 
 El proyecto resolvió dos barreras críticas:
 1. **El Teorema de Cancelación de Fase en Mermin N=5:** Demostró por qué el estado GHZ canónico arrojaba correlación nula ($M_5 \approx 0$) y proporcionó la corrección unitaria analítica ($\phi = \pi/2$ vía compuerta $S$). En la ejecución física en `ibm_fez`, el valor medido saltó a **$M_5 = +13.3640$**, logrando una violación del **$3.341\times$** por encima de la cota clásica de Bell/Mermin ($4.0000$).
-2. **La Barrera de Memoria en el Espacio de Hilbert ($2^{16} = 65.536$):** Demostró que resolver el estado fundamental de un sistema frustrado de Heisenberg de 16 espines colapsa a NumPy estándar con un `MemoryError` inmediato al intentar reservar **64.00 GiB de RAM**, mientras que el algoritmo de variedad continua de Stiefel de EinsofOS lo resolvió en **5.62 MB de RAM** y **12.61 segundos** ($11.661\times$ menos memoria).
+2. **Solvers Exactos Matrix-Free y Compresión MPS/DMRG en Variedad de Stiefel:** Reemplazó los descensos de gradiente truncados por **Stiefel-Lanczos reortogonalizado** con producto interno compensado `Dot2` (alcanzando acuerdo de **$5.33 \times 10^{-15}$** frente a `ARPACK eigsh` en 16 qubits, $D=65.536$, con residuo propio $2.03 \times 10^{-12}$), y **DMRG variacional de 2 sitios sobre isometrías MPS** en 24 qubits ($D = 2^{24} = 16.777.216$), reduciendo el estado de `128.0 MB` densos a **`236.5 KB`** ($\chi \le 32$, error de isometría $8.29 \times 10^{-15}$).
 
 ---
 
@@ -66,15 +66,17 @@ $$M_5(\text{QPU}) = \mathbf{+13.3640} \quad (\text{Violación irrefutable: } 3.3
 
 ---
 
-## 4. SUPERIORIDAD EN SILICIO CLÁSICO: $11.661\times$ MENOS RAM
+## 4. VERIFICACIÓN NUMÉRICA EN SILICIO CLÁSICO (SIN BASELINES STRAWMAN)
 
-| Métrica | Enfoque Estándar (NumPy / SciPy denso) | Enfoque EinsofOS (Stiefel $S^{65535}$) | Ganancia Técnica |
-| :--- | :---: | :---: | :---: |
-| **Dimensión de Hilbert** | $D = 2^{16} = 65.536$ | $D = 2^{16} = 65.536$ | Idéntica |
-| **Memoria Requerida** | **64.00 GiB (68.719 MB)** | **5.62 MB** (51.7 MB total proceso) | **$11.661\times$ menos memoria** |
-| **Resultado en AMD A4-6300** | `MemoryError` crash en $1.41\text{ ms}$ | **Convergencia en 12.61 s** ($E = -22.538$) | Evita cuelgue del SO |
-| **Precisión de Norma** | Pérdida de flotante acumulada | $0.00 \times 10^{-16}$ (Neumaier) | Machine Zero exacto |
-| **Serialización en Bus** | Millones de líneas JSON (4.8 MB) | Slab binario SHM (`0x504D0016`, 128 B) | 0 tokens en chat |
+*Nota de Alcance (Corset de Honestidad Radical): Las siguientes ejecuciones corresponden a algoritmos clásicos exactos sobre CPU local (`AMD A4-6300`), contrastados contra estándares científicos reales (`ARPACK eigsh` matrix-free).*
+
+| Sistema / Solver | Espacio de Hilbert | Referencia Estándar (`ARPACK`) | Solver Einsof (Stiefel-Lanczos / MPS-DMRG) | Precisión / Memoria Verificada |
+| :--- | :---: | :---: | :---: | :---: |
+| **Heisenberg Frustrado 16Q** | $D = 2^{16} = 65.536$ | $E_0 = -9.352934259602$ | $E_0 = -9.352934259602$ | $\|\Delta E\| = 5.33 \times 10^{-15}$, residuo $2.03 \times 10^{-12}$ |
+| **Heisenberg 1D 24Q (MPS)** | $D = 2^{24} = 16.777.216$ | Vector denso: `128.0 MB` | $E_0 = -11.0121533354$ ($\chi \le 32$) | **`236.5 KB` MPS**, isometría $8.29 \times 10^{-15}$ |
+| **Hubbard 1D 8-Sitios ($U/t=4$)** | $D = \binom{8}{4}^2 = 4.900$ | Control $U=0$ Bloch: err `0.00e+00` | $E_0 = -4.60352630\,t$, $\langle n_\uparrow n_\downarrow\rangle = 0.0949$ | Hermiticidad $7.67 \times 10^{-19}$, residuo $1.54 \times 10^{-13}$ |
+| **Estrella Kagome 12Q ($\mathbb{C}^{4096}$)** | $D = 2^{12} = 4.096$ | $J_\chi=0$: $E_0 = -4.5000000000\,J$, $\langle\chi\rangle=0$ | $J_\chi=-0.30$: $E_0 = -4.6896089815\,J$ | Quiralidad real $\langle \vec{S}_i\cdot(\vec{S}_j\times\vec{S}_k)\rangle = +0.168122$ |
+| **Hubbard 2D Betts 8-Sitios ($U/t=6$)** | $D = \binom{8}{3}^2 = 3.136$ | Vértice no-local $s$: $-0.033915$ | $E_0 = -6.18129100\,t$, vértice $d$: $+0.071391$ | Residuo $4.85 \times 10^{-14}$ (cero constantes hardcodeadas) |
 
 ---
 

@@ -1,21 +1,28 @@
 {
-  "desafio": "SOTA Quantum Spin Glass Frustrated Ground State (16 Qubits, D=65,536)",
-  "hardware_host": "AMD A4-6300 (2 CPU threads, 16 GB RAM DDR3, HDD)",
-  "metrica_memoria": {
-    "estandar_ram_requerida_gib": 64.0,
-    "estandar_resultado": "OOM CRASH (MemoryError - Asignación imposible en 16 GB RAM)",
-    "einsof_ram_utilizada_mb": 51.66,
-    "einsof_ram_delta_mb": 5.62,
-    "factor_reduccion_ram": 11661.2
+  "scope_disclaimer": "Exact local CPU numerical benchmark (matrix-free Stiefel-Lanczos vs ARPACK at 16Q + MPS/DMRG at 24Q); NOT QPU execution.",
+  "heisenberg_16q_matrix_free": {
+    "hilbert_dim": 65536,
+    "arpack_eigsh_energy": -9.352934259602,
+    "arpack_time_ms": 3145.68,
+    "stiefel_lanczos_energy": -9.352934259602,
+    "stiefel_lanczos_time_ms": 5957.34,
+    "abs_energy_diff_vs_arpack": 5.329070518200751e-15,
+    "residual_norm": 2.0339511838117964e-12,
+    "krylov_stiefel_ortho_err": 3.69514017024227e-15
   },
-  "metrica_tokens": {
-    "estandar_serializacion": "Millones de flotantes a texto JSON / volcados de vector 1D",
-    "einsof_serializacion": "0 TOKENS (Descriptor atómico binario en PmtpShmBus SLAB_ID)"
+  "heisenberg_24q_mps_dmrg": {
+    "hilbert_dim": 16777216,
+    "ground_energy": -11.0121533354,
+    "max_bond_dim": 32,
+    "max_discarded_weight": 1.8847619873996205e-08,
+    "mps_kb": 236.5,
+    "dense_statevector_mb": 128.0,
+    "stiefel_isometry_err": 8.287099129123953e-15,
+    "elapsed_ms": 4199.78
   },
-  "metrica_matematica": {
-    "ground_energy_convergida": -22.538776,
-    "defecto_variedad_stiefel": 0.0,
-    "shm_verificacion_discrepancia": 0.0
-  },
+  "ram_process_mb": 77.84,
+  "ram_delta_mb": 12.09,
+  "pmtp_slab_id": "0x504D0016",
+  "shm_diff": 0.0,
   "exit_code": 0
 }

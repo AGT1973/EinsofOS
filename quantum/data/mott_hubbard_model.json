@@ -1,12 +1,50 @@
 {
-  "problema": "Mott Metal-Insulator Transition in Hubbard Model (16 spin-orbitals, D=4900)",
-  "relevancia_global": "Tsinghua (China), RIKEN (Japón), MPI Stuttgart (Alemania), Balseiro (Argentina)",
-  "u_over_t": 4.0,
-  "ground_energy": 0.029158,
-  "double_occupancy": 0.0468,
+  "scope_disclaimer": "Exact finite-cluster CPU diagonalization (8-site 1D ring, D=4900); NOT physical QPU execution nor thermodynamic-limit proof.",
+  "problema": "1D Hubbard Half-Filling Exact Hermitian Lanczos (8 sites, D=4900)",
+  "analytic_u0_error": 0.0,
+  "u_sweep": [
+    {
+      "U_over_t": 0.0,
+      "ground_energy": -9.6568542495,
+      "energy_per_site": -1.2071067812,
+      "double_occupancy": 0.242663,
+      "residual_norm": 9.610908963104114e-13,
+      "hermiticity_defect": 1.7381326235438815e-18,
+      "matvecs": 36
+    },
+    {
+      "U_over_t": 2.0,
+      "ground_energy": -6.5681921629,
+      "energy_per_site": -0.8210240204,
+      "double_occupancy": 0.154492,
+      "residual_norm": 3.3514437219092996e-13,
+      "hermiticity_defect": 2.67597867360866e-18,
+      "matvecs": 76
+    },
+    {
+      "U_over_t": 4.0,
+      "ground_energy": -4.6035263,
+      "energy_per_site": -0.5754407875,
+      "double_occupancy": 0.094926,
+      "residual_norm": 1.536102936725643e-13,
+      "hermiticity_defect": 7.670322850917866e-19,
+      "matvecs": 86
+    },
+    {
+      "U_over_t": 8.0,
+      "ground_energy": -2.6661474201,
+      "energy_per_site": -0.3332684275,
+      "double_occupancy": 0.037022,
+      "residual_norm": 6.682869035352271e-13,
+      "hermiticity_defect": 0.0,
+      "matvecs": 127
+    }
+  ],
+  "u4_ground_energy": -4.6035263,
+  "u4_residual_norm": 1.536102936725643e-13,
   "stiefel_drift": 0.0,
   "shm_diff": 0.0,
   "pmtp_slab_id": "0x504D0008",
-  "latencia_ms": 910.91,
+  "latencia_ms": 1044.1,
   "exit_code": 0
 }

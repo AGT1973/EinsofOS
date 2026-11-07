@@ -1,0 +1,22 @@
+{
+  "scope_disclaimer": "Exact diagonalization on finite 8-site sqrt(8)xsqrt(8) Betts CPU cluster; NOT a thermodynamic-limit proof.",
+  "problem": "2D_REPULSIVE_HUBBARD_8SITE_BETTS_PAIRING",
+  "n_sites": 8,
+  "n_electrons": 6,
+  "doping_delta": 0.25,
+  "U_over_t": 6.0,
+  "hilbert_dim": 3136,
+  "ground_energy_t": -6.1812909954,
+  "ground_energy_per_site": -0.7726613744,
+  "eigenstate_residual_norm": 4.8509286951461176e-14,
+  "hermiticity_defect": 1.5453476450434657e-18,
+  "double_occupancy": 0.01713,
+  "p_dwave_total": 0.163188,
+  "p_swave_total": 0.425436,
+  "p_dwave_nonlocal_disjoint": 0.099573,
+  "p_swave_nonlocal_disjoint": 0.127283,
+  "pairing_ratio_d_over_s": 0.3836,
+  "neumaier_drift": 0.0,
+  "execution_ms": 266.12,
+  "timestamp": "2026-11-07 15:55:54"
+}

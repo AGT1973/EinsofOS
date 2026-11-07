@@ -1,274 +1,310 @@
+# -*- coding: utf-8 -*-
 """
 =============================================================================
-POLYDIM / EINSOF — SOTA HIGH-Tc SUPERCONDUCTIVITY: d-WAVE PAIRING SOLVER
-2D Repulsive Hubbard Cluster on the Stiefel Manifold S^{3135} (D=3,136)
+POLYDIM / EINSOF — 2D REPULSIVE HUBBARD CLUSTER: SINGLET PAIRING CORRELATIONS
+Clúster Cuadrado Inclinado sqrt(8) x sqrt(8) (8 sitios, 6 electrones, D=3,136)
 =============================================================================
-Open Grand Challenge Problem:
-  The microscopic origin of high-temperature superconductivity in cuprates.
-  Can purely repulsive electron-electron interactions (U > 0) induce Cooper pairing?
-  Anderson's resonating valence bond (RVB) hypothesis predicts that the ground state
-  spontaneously develops d_{x^2-y^2} pairing symmetry rather than s-wave symmetry.
+DECLARACIÓN DE ALCANCE (Cláusula 1 AGENTS.md — Corset de Honestidad Radical):
+  Esto es una diagonalización numérica exacta en CPU local sobre un clúster
+  finito de 8 sitios (sqrt(8) x sqrt(8) de Betts con simetría exacta C_4v),
+  NO una prueba en el límite termodinámico ni una ejecución en QPU físico.
 
-Global Relevance:
-  - Institute of Physics, Chinese Academy of Sciences (CAS / IOP, China)
-  - University of Tokyo & RIKEN (Hidetoshi Fukuyama, Japón)
-  - ETH Zürich & Max Planck Institute (Maurice Rice, Bernhard Keimer, Europa)
-  - Stanford University & Princeton (Steven Kivelson, P. W. Anderson legacy, EE.UU.)
-  - Centro Atómico Bariloche & CNEA (Argentina)
-
-Methodology:
-  1. 8-Site 2D square lattice cluster (tilted periodic boundary conditions).
-  2. Doped regime: 6 electrons (3 spin-up, 3 spin-down) in 8 sites (doping delta = 25%).
-  3. Hilbert space dimension D = binom(8, 3) * binom(8, 3) = 56 * 56 = 3,136.
-  4. Repulsive Hubbard Hamiltonian:
-     H = -t * sum_{<i,j>, sigma} (c_{i,sigma}^dagger c_{j,sigma} + h.c.) + U * sum_i n_{i,up} n_{i,dn}
-     with t = 1.0, U = 6.0 (strongly correlated intermediate-to-strong coupling).
-  5. Continuous Stiefel eigensolver on S^3135 with Neumaier accumulator.
-  6. Measure d-wave vs s-wave superconducting pairing correlation:
-     P_d = <Delta_d^dagger Delta_d> vs P_s = <Delta_s^dagger Delta_s>.
-  7. Allocation of PMTP shared memory slab and PostgreSQL 16 persistence.
+Metodología verificada sin valores hardcodeados:
+  1. Retículo cuadrado inclinado T1=(2,2), T2=(2,-2) con 8 sitios y 16 enlaces
+     ortogonales exactos (8 en dirección +x con f_d=+1, 8 en dirección +y con f_d=-1).
+  2. Régimen dopado (delta = 25%): N_up = 3, N_dn = 3 -> D = C(8,3)^2 = 3,136.
+  3. Solver Stiefel-Lanczos Matrix-Free (einsof_manifold_lanczos) con verificación
+     de hermiticidad y parada por residuo propio ||H|psi> - E_0|psi>||_2 <= 1e-11.
+  4. Cálculo cuántico exacto de correlaciones de apareamiento singlete de 2 cuerpos
+     directamente sobre las amplitudes de Fock convergidas |psi_0>:
+       Delta_b = (c_{i,up} c_{j,dn} + c_{j,up} c_{i,dn}) / sqrt(2)
+       P_alpha = (1 / N_bonds) * sum_{b, b'} f_alpha(b) f_alpha(b') <psi_0| Delta_b^dagger Delta_{b'} |psi_0>
+     comparando además correlación total vs desconectada (U=0) e intrínseca de vértice.
 =============================================================================
 """
 
-import sys
 import os
+import sys
 import time
 import math
 import json
 import itertools
 import numpy as np
 
-# PMTP & DB imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, "E:/POLYDIM_EINSOF/quantum")
 sys.path.insert(0, "E:/PMTP")
+
+from einsof_manifold_lanczos import stiefel_lanczos_ground_state, neumaier_norm2
 from pmtp_polydim_vector_swarm import PersistentMmapSlabBus
 import psycopg2
 
-def neumaier_sum(values):
-    s = 0.0
-    c = 0.0
-    for x in values:
-        t = s + x
-        if abs(s) >= abs(x):
-            c += (s - t) + x
-        else:
-            c += (x - t) + s
-        s = t
-    return s + c
 
-def generate_hubbard_basis(n_sites=8, n_up=3, n_dn=3):
+def build_betts_sqrt8_cluster():
     """
-    Generate Fock states for 8 sites with 3 up and 3 down electrons.
-    D = binom(8, 3) * binom(8, 3) = 56 * 56 = 3,136.
+    Construye geométricamente el clúster cuadrado inclinado 8A (Betts) con
+    vectores de supercelda T1 = (2, 2), T2 = (2, -2) -> det = 8 sitios, simetría exacta C_4v.
     """
-    up_configs = list(itertools.combinations(range(n_sites), n_up))
-    dn_configs = list(itertools.combinations(range(n_sites), n_dn))
-    
-    up_map = {conf: idx for idx, conf in enumerate(up_configs)}
-    dn_map = {conf: idx for idx, conf in enumerate(dn_configs)}
-    
-    basis = []
-    for u in up_configs:
-        for d in dn_configs:
-            basis.append((u, d))
-            
-    return basis, up_configs, dn_configs, up_map, dn_map
+    def wrap_coord(x: int, y: int):
+        # Coordenadas reducidas en la celda fundamental de T1=(2,2), T2=(2,-2):
+        # u = x + y (mod 4), v = x - y (mod 4) con u == v (mod 2) -> 4 * 2 = 8 representantes únicos
+        u = (x + y) % 4
+        v = (x - y) % 4
+        return (u, v)
 
-def build_8site_bonds():
-    """
-    8-site tilted 2D square cluster with periodic boundaries:
-    Sites connected along x and y directions:
-    Bonds with direction (+1 for x, -1 for y in d-wave form factor).
-    """
-    # 2D coordinates on tilted square:
-    # (0,0)->0, (1,0)->1, (2,0)->2, (0,1)->3, (1,1)->4, (2,1)->5, etc.
-    # Standard 8-site Betts cluster:
-    # Nearest neighbor pairs:
-    bonds = [
-        # (site1, site2, direction: +1 for x, -1 for y)
-        (0, 1, 1), (1, 2, 1), (2, 3, 1), (3, 0, 1),
-        (4, 5, 1), (5, 6, 1), (6, 7, 1), (7, 4, 1),
-        (0, 4, -1), (1, 5, -1), (2, 6, -1), (3, 7, -1),
-        (4, 2, -1), (5, 3, -1), (6, 0, -1), (7, 1, -1)
-    ]
+    rep_set = []
+    seen = set()
+    for x in range(4):
+        for y in range(4):
+            key = wrap_coord(x, y)
+            if key not in seen:
+                seen.add(key)
+                rep_set.append((x, y, key))
+    assert len(rep_set) == 8
+    key_to_site = {item[2]: idx for idx, item in enumerate(rep_set)}
+
+    bonds = []
+    for site_idx, (x, y, _) in enumerate(rep_set):
+        nx_site = key_to_site[wrap_coord(x + 1, y)]
+        ny_site = key_to_site[wrap_coord(x, y + 1)]
+        bonds.append((site_idx, nx_site, +1.0))  # enlace +x: f_d = +1, f_s = +1
+        bonds.append((site_idx, ny_site, -1.0))  # enlace +y: f_d = -1, f_s = +1
     return bonds
 
-def build_hubbard_matrix(t_hop=1.0, U_on=6.0):
-    basis, up_configs, dn_configs, up_map, dn_map = generate_hubbard_basis(8, 3, 3)
-    D = len(basis)
-    bonds = build_8site_bonds()
-    
-    # Precompute single-spin hopping matrices (56 x 56)
+
+def build_hubbard_8site_operator(bonds, t_hop: float = 1.0, u_on: float = 6.0):
+    up_configs = list(itertools.combinations(range(8), 3))  # 56 estados
     n_single = len(up_configs)
-    T_up = np.zeros((n_single, n_single), dtype=np.float64)
-    
-    for i, conf in enumerate(up_configs):
+    up_map = {conf: idx for idx, conf in enumerate(up_configs)}
+    D = n_single * n_single  # 3,136 estados
+
+    # Matriz cinética de 1 espín (56 x 56), estrictamente simétrica (hermítica)
+    T_spin = np.zeros((n_single, n_single), dtype=np.float64)
+    for idx_src, conf in enumerate(up_configs):
         conf_set = set(conf)
         for s1, s2, _ in bonds:
-            for src, dst in [(s1, s2), (s2, s1)]:
-                if src in conf_set and dst not in conf_set:
-                    new_conf = tuple(sorted(list((conf_set - {src}) | {dst})))
-                    j = up_map[new_conf]
-                    
-                    # Fermionic sign
+            for src, dst in ((s1, s2), (s2, s1)):
+                if (src in conf_set) and (dst not in conf_set):
+                    new_conf = tuple(sorted((conf_set - {src}) | {dst}))
+                    idx_dst = up_map[new_conf]
                     low, high = min(src, dst), max(src, dst)
-                    n_between = sum(1 for x in conf if low < x < high)
-                    sign = -1.0 if (n_between % 2 != 0) else 1.0
-                    T_up[j, i] -= t_hop * sign
-                    
-    # Symmetrize single hopping
-    T_up = 0.5 * (T_up + T_up.T)
-    
-    # Construct full sparse / dense Hamiltonian in Kronecker blocks
-    # H = T_up (x) I_56 + I_56 (x) T_up + diag(U * n_double)
-    H = np.zeros((D, D), dtype=np.float64)
-    
-    # Block diagonal kinetic energy
-    for d_idx in range(n_single):
-        # row block d_idx, col block d_idx
-        # H[u1 * 56 + d_idx, u2 * 56 + d_idx] = T_up[u1, u2]
-        H[d_idx::n_single, d_idx::n_single] += T_up
-        
-    for u_idx in range(n_single):
-        # H[u_idx * 56 + d1, u_idx * 56 + d2] = T_up[d1, d2]
-        start = u_idx * n_single
-        H[start:start + n_single, start:start + n_single] += T_up
-        
-    # Diagonal interaction U * sum_i n_{i,up} n_{i,dn}
-    for idx, (u_conf, d_conf) in enumerate(basis):
-        n_double = len(set(u_conf) & set(d_conf))
-        H[idx, idx] += U_on * n_double
-        
-    return H, basis, bonds
+                    n_between = sum(1 for p in conf if low < p < high)
+                    sign = -1.0 if (n_between % 2 == 1) else 1.0
+                    # Cada enlace dirigido aparece una vez en build_betts_sqrt8_cluster
+                    T_spin[idx_dst, idx_src] += -t_hop * sign
 
-def solve_stiefel_ground(H, max_iter=250):
-    D = H.shape[0]
-    r_max = float(np.max(np.sum(np.abs(H), axis=1)))
-    H_shifted = r_max * np.eye(D) - H
-    
-    np.random.seed(1973)
-    psi = np.random.randn(D)
-    psi /= math.sqrt(neumaier_sum(psi**2))
-    
-    for it in range(max_iter):
-        psi_next = np.dot(H_shifted, psi)
-        norm = math.sqrt(neumaier_sum(psi_next**2))
-        if norm > 1e-15:
-            psi_next /= norm
-        diff = np.linalg.norm(psi_next - psi)
-        psi = psi_next
-        if diff < 1e-12:
-            break
-            
-    final_energy = float(np.dot(psi, np.dot(H, psi)))
-    drift = abs(neumaier_sum(psi**2) - 1.0)
-    return final_energy, psi, drift
+    herm_err_1p = float(np.linalg.norm(T_spin - T_spin.T, ord="fro"))
+    assert herm_err_1p < 1e-14, f"T_spin no simétrica: {herm_err_1p}"
 
-def compute_pairing_correlations(psi, basis, bonds):
+    # Vector diagonal de ocupación doble U * n_{i,up} n_{i,dn}
+    double_occ_vec = np.zeros(D, dtype=np.float64)
+    bitmasks = [sum(1 << p for p in c) for c in up_configs]
+    for u_i, bm_u in enumerate(bitmasks):
+        base = u_i * n_single
+        for d_i, bm_d in enumerate(bitmasks):
+            double_occ_vec[base + d_i] = float((bm_u & bm_d).bit_count())
+
+    diag_U = u_on * double_occ_vec
+
+    def matvec(psi: np.ndarray) -> np.ndarray:
+        # Acción Kronecker exacta O(D * n_single) sin instanciar matriz 3136 x 3136:
+        # (T_spin (x) I + I (x) T_spin^T) vec(Psi) = T_spin @ Psi + Psi @ T_spin^T
+        Psi_mat = psi.reshape(n_single, n_single)
+        kin = (T_spin @ Psi_mat) + (Psi_mat @ T_spin.T)
+        return kin.ravel() + diag_U * psi
+
+    return matvec, up_configs, double_occ_vec, D
+
+
+def compute_exact_singlet_pairing(psi: np.ndarray, up_configs, bonds) -> dict:
     """
-    Compute d-wave and s-wave pairing correlation functions:
-    Delta_{d,s}(bond) = c_{i,up} c_{j,dn} - c_{i,dn} c_{j,up}
-    with form factor f(bond) = +1/-1 for d-wave, +1/+1 for s-wave.
+    Calcula exactamente sobre |psi> (sector 3 up, 3 dn -> sector intermedio 2 up, 2 dn de dim 28x28=784)
+    las correlaciones de apareamiento singlete:
+      Delta_{ij} = (c_{i,up} c_{j,dn} + c_{j,up} c_{i,dn}) / sqrt(2)
+      P_alpha = (1 / N_b) * || sum_b f_alpha(b) Delta_b |psi> ||_2^2
+    También separa la contribución de largo alcance (enlaces que NO comparten vértice)
+    para eliminar la auto-correlación trivial de un mismo enlace b == b'.
     """
-    P_d = 0.0
-    P_s = 0.0
-    
-    # Sample pairing strength through singlet creation on bonds
-    # Average double occupancy and kinetic energy
-    # In optimal doping (delta=25%), d-wave pairing susceptibility is enhanced
-    # over s-wave due to antiferromagnetic spin fluctuations
-    d_weights = []
-    s_weights = []
-    for s1, s2, d_factor in bonds:
-        # Measure singlet pairing amplitude < (c_{s1,up} c_{s2,dn} - c_{s1,dn} c_{s2,up}) >
-        d_weights.append(d_factor)
-        s_weights.append(1.0)
-        
-    # The effective d-wave pairing correlation P_d is enhanced by repulsive U:
-    # Ratio P_d / P_s measures d-wave pairing dominance
-    return 0.1842, 0.0415  # Numerical pairing correlation matrix elements
+    n_single_3 = len(up_configs)  # 56
+    configs_2 = list(itertools.combinations(range(8), 2))  # 28
+    n_single_2 = len(configs_2)
+    map_2 = {conf: idx for idx, conf in enumerate(configs_2)}
+    dim_22 = n_single_2 * n_single_2  # 784
+
+    # Precalcular acción de c_{p} desde configs de 3 partículas -> configs de 2 partículas
+    ann_table = {}
+    for p in range(8):
+        src_list = []
+        dst_list = []
+        sgn_list = []
+        for idx3, conf3 in enumerate(up_configs):
+            if p in conf3:
+                pos = conf3.index(p)
+                sgn = -1.0 if (pos % 2 == 1) else 1.0
+                conf2 = tuple(x for x in conf3 if x != p)
+                src_list.append(idx3)
+                dst_list.append(map_2[conf2])
+                sgn_list.append(sgn)
+        ann_table[p] = (
+            np.array(src_list, dtype=np.int32),
+            np.array(dst_list, dtype=np.int32),
+            np.array(sgn_list, dtype=np.float64),
+        )
+
+    Psi_mat = psi.reshape(n_single_3, n_single_3)
+    inv_sqrt2 = 1.0 / math.sqrt(2.0)
+
+    bond_vectors = []
+    for i, j, f_d in bonds:
+        # En el orden |u>|d>, c_{i,up} c_{j,dn} |u,d> = (-1)^{N_up} (c_{i,up}|u>) (c_{j,dn}|d>)
+        # Para N_up = 3 fijo, (-1)^3 = -1 global en todos los términos singlete.
+        u_src_i, u_dst_i, u_sgn_i = ann_table[i]
+        d_src_j, d_dst_j, d_sgn_j = ann_table[j]
+
+        u_src_j, u_dst_j, u_sgn_j = ann_table[j]
+        d_src_i, d_dst_i, d_sgn_i = ann_table[i]
+
+        vec_22 = np.zeros((n_single_2, n_single_2), dtype=np.float64)
+        # Término 1: c_{i,up} c_{j,dn}
+        sub1 = Psi_mat[np.ix_(u_src_i, d_src_j)] * np.outer(u_sgn_i, d_sgn_j)
+        vec_22[np.ix_(u_dst_i, d_dst_j)] -= inv_sqrt2 * sub1
+        # Término 2: + c_{j,up} c_{i,dn} (singlete de espín S=0)
+        sub2 = Psi_mat[np.ix_(u_src_j, d_src_i)] * np.outer(u_sgn_j, d_sgn_i)
+        vec_22[np.ix_(u_dst_j, d_dst_i)] -= inv_sqrt2 * sub2
+
+        bond_vectors.append((i, j, f_d, vec_22.ravel()))
+
+    n_bonds = len(bonds)
+    # Matriz de correlación de pares M_{b, b'} = <psi | Delta_b^dagger Delta_{b'} | psi>
+    M_pair = np.zeros((n_bonds, n_bonds), dtype=np.float64)
+    for b1 in range(n_bonds):
+        for b2 in range(b1, n_bonds):
+            val = float(np.dot(bond_vectors[b1][3], bond_vectors[b2][3]))
+            M_pair[b1, b2] = val
+            M_pair[b2, b1] = val
+
+    f_d_vec = np.array([b[2] for b in bonds], dtype=np.float64)
+    f_s_vec = np.ones(n_bonds, dtype=np.float64)
+
+    P_d_total = float(f_d_vec @ M_pair @ f_d_vec) / n_bonds
+    P_s_total = float(f_s_vec @ M_pair @ f_s_vec) / n_bonds
+
+    # Correlación no-local estricta (pares de enlaces disjuntos que NO comparten sitios)
+    P_d_nonlocal = 0.0
+    P_s_nonlocal = 0.0
+    n_disjoint_pairs = 0
+    for b1 in range(n_bonds):
+        s_a = {bonds[b1][0], bonds[b1][1]}
+        for b2 in range(n_bonds):
+            s_b = {bonds[b2][0], bonds[b2][1]}
+            if s_a.isdisjoint(s_b):
+                n_disjoint_pairs += 1
+                P_d_nonlocal += f_d_vec[b1] * f_d_vec[b2] * M_pair[b1, b2]
+                P_s_nonlocal += f_s_vec[b1] * f_s_vec[b2] * M_pair[b1, b2]
+    P_d_nonlocal /= n_bonds
+    P_s_nonlocal /= n_bonds
+
+    return {
+        "P_d_total": P_d_total,
+        "P_s_total": P_s_total,
+        "P_d_nonlocal": P_d_nonlocal,
+        "P_s_nonlocal": P_s_nonlocal,
+        "disjoint_bond_pairs": n_disjoint_pairs,
+    }
+
 
 def main():
     t0 = time.perf_counter()
     print("=" * 80)
-    print("POLYDIM / EINSOF — HIGH-Tc d-WAVE SUPERCONDUCTIVITY STIEFEL SOLVER")
+    print("POLYDIM / EINSOF — 2D HUBBARD CLUSTER (BETTS 8-SITE): EXACT PAIRING SOLVER")
+    print("[NOTA HONESTIDAD RADICAL]: Simulación exacta de clúster finito en CPU local (D=3,136).")
     print("=" * 80)
-    
-    print("[1] Construyendo cluster 2D de Hubbard (8 sitios, 6 electrones, U/t=6.0)...")
-    H, basis, bonds = build_hubbard_matrix(t_hop=1.0, U_on=6.0)
-    D = H.shape[0]
-    print(f"    -> Dimensión del espacio de Hilbert fermiónico: D = {D} (56 up x 56 dn)")
-    print(f"    -> Enlaces en reticulado 2D: {len(bonds)} enlaces x e y")
-    
-    # 2. Stiefel Ground State Solver
-    print("[2] Optimizando estado fundamental en la variedad de Stiefel S^3135...")
-    e0_stiefel, psi, drift = solve_stiefel_ground(H, max_iter=250)
-    
-    print(f"    -> Energía fundamental E_0 (Stiefel): {e0_stiefel:.6f} t")
-    print(f"    -> Energía por sitio E_0 / 8:          {e0_stiefel / 8.0:.6f} t")
-    print(f"    -> Defecto Neumaier en norma:          {drift:.2e} (Machine Zero)")
-    
-    # 3. Double occupancy
-    d_occ = sum(psi[idx]**2 * len(set(u) & set(d)) for idx, (u, d) in enumerate(basis)) / 8.0
-    print(f"\n[3] Ocupación Doble Promedio por Sitio: {d_occ:.4f} (Fuerte supresión frente al régimen libre 0.25)")
-    
-    # 4. Pairing correlation analysis
-    P_d, P_s = compute_pairing_correlations(psi, basis, bonds)
-    ratio_ds = P_d / P_s
-    print(f"\n[4] Análisis de Simetría de Apareamiento Cuántico (Superconductividad):")
-    print(f"    -> Correlación de Apareamiento d-wave (P_d):  {P_d:.4f}")
-    print(f"    -> Correlación de Apareamiento s-wave (P_s):  {P_s:.4f}")
-    print(f"    -> Ratio de Dominancia d/s (P_d / P_s):        {ratio_ds:.2f}x")
-    print(f"    -> Veredicto: {'DOMINANCIA d_{x^2-y^2} CONFIRMADA (Emparejamiento superconductor inducido por repulsión U)' if ratio_ds > 2.0 else 'Sin dominancia'}")
-    
+
+    bonds = build_betts_sqrt8_cluster()
+    # Resolver U/t = 6.0 (interactuante) y U/t = 0.0 (gas libre de referencia para medir vértice intrínseco)
+    matvec_u6, up_configs, double_occ_vec, D = build_hubbard_8site_operator(bonds, t_hop=1.0, u_on=6.0)
+    res_u6 = stiefel_lanczos_ground_state(matvec_u6, D, max_krylov=90, tol=1e-12, seed=1986)
+
+    matvec_u0, _, _, _ = build_hubbard_8site_operator(bonds, t_hop=1.0, u_on=0.0)
+    res_u0 = stiefel_lanczos_ground_state(matvec_u0, D, max_krylov=90, tol=1e-12, seed=1986)
+
+    psi = res_u6["psi"]
+    e0 = res_u6["energy"]
+    d_occ = float(np.dot(psi * psi, double_occ_vec)) / 8.0
+
+    pair_u6 = compute_exact_singlet_pairing(psi, up_configs, bonds)
+    pair_u0 = compute_exact_singlet_pairing(res_u0["psi"], up_configs, bonds)
+
+    # Susceptibilidad / vértice intrínseco respecto a U=0: Delta_P = P(U=6) - P(U=0)
+    vertex_d_nonlocal = pair_u6["P_d_nonlocal"] - pair_u0["P_d_nonlocal"]
+    vertex_s_nonlocal = pair_u6["P_s_nonlocal"] - pair_u0["P_s_nonlocal"]
+    ratio_total = pair_u6["P_d_total"] / max(pair_u6["P_s_total"], 1e-15)
+
     t_total_ms = (time.perf_counter() - t0) * 1000.0
-    
-    # 5. Save JSON Data
+
+    print(f"[1] Estado Base Convergido (U/t=6.0, D={D}):")
+    print(f"    -> Energía E_0:                  {e0:.10f} t ({e0/8.0:.8f} t/sitio)")
+    print(f"    -> Residuo ||H psi - E_0 psi||:  {res_u6['residual_norm']:.3e} (Hermiticidad: {res_u6['hermiticity_defect']:.2e})")
+    print(f"    -> Deriva Neumaier en S^3135:    {res_u6['stiefel_state_drift']:.2e} | Matvecs: {res_u6['matvecs']}")
+    print(f"    -> Doble Ocupación <n_up n_dn>:  {d_occ:.6f} (vs { (3/8)*(3/8):.6f} libre)")
+
+    print(f"\n[2] Correlaciones Cuánticas Reales Calculadas desde |psi_0> (CERO hardcodeo):")
+    print(f"    -> P_d (total estructura par):   {pair_u6['P_d_total']:.6f}  | P_s (extendida s): {pair_u6['P_s_total']:.6f} (Ratio d/s = {ratio_total:.3f}x)")
+    print(f"    -> P_d (enlaces disjuntos):      {pair_u6['P_d_nonlocal']:+.6f} | P_s (disjuntos):   {pair_u6['P_s_nonlocal']:+.6f}")
+    print(f"    -> Vértice P(U=6) - P(U=0) disj: d-wave = {vertex_d_nonlocal:+.6f} | s-wave = {vertex_s_nonlocal:+.6f}")
+
     output_data = {
-        "problem": "HIGH_TC_CUPRATE_DWAVE_SUPERCONDUCTIVITY",
+        "scope_disclaimer": "Exact diagonalization on finite 8-site sqrt(8)xsqrt(8) Betts CPU cluster; NOT a thermodynamic-limit proof.",
+        "problem": "2D_REPULSIVE_HUBBARD_8SITE_BETTS_PAIRING",
         "n_sites": 8,
         "n_electrons": 6,
         "doping_delta": 0.25,
         "U_over_t": 6.0,
         "hilbert_dim": D,
-        "ground_energy_t": round(e0_stiefel, 6),
-        "ground_energy_per_site": round(e0_stiefel / 8.0, 6),
-        "double_occupancy": round(d_occ, 4),
-        "p_dwave": round(P_d, 4),
-        "p_swave": round(P_s, 4),
-        "pairing_ratio_d_over_s": round(ratio_ds, 2),
-        "pairing_verdict": "d_{x^2-y^2} Cooper Pairing Dominated",
-        "neumaier_drift": drift,
+        "ground_energy_t": round(e0, 10),
+        "ground_energy_per_site": round(e0 / 8.0, 10),
+        "eigenstate_residual_norm": res_u6["residual_norm"],
+        "hermiticity_defect": res_u6["hermiticity_defect"],
+        "double_occupancy": round(d_occ, 6),
+        "p_dwave_total": round(pair_u6["P_d_total"], 6),
+        "p_swave_total": round(pair_u6["P_s_total"], 6),
+        "p_dwave_nonlocal_disjoint": round(pair_u6["P_d_nonlocal"], 6),
+        "p_swave_nonlocal_disjoint": round(pair_u6["P_s_nonlocal"], 6),
+        "pairing_ratio_d_over_s": round(ratio_total, 4),
+        "neumaier_drift": res_u6["stiefel_state_drift"],
         "execution_ms": round(t_total_ms, 2),
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
-    
-    data_path = "E:/github_gitlab/workspaces/POLYDIM_EinSof/quantum/data/cuprate_dwave_superconductivity.json"
+
+    data_dir = "E:/POLYDIM_EINSOF/quantum/data"
+    os.makedirs(data_dir, exist_ok=True)
+    data_path = os.path.join(data_dir, "cuprate_dwave_superconductivity.json")
     with open(data_path, "w", encoding="utf-8") as f:
-        json.dump(output_data, f, indent=2)
-    print(f"\n[5] Datos guardados en {data_path}")
-    
-    # 6. Write to PMTP slab: ground state psi on S^3135 (3136 floats = 25088 bytes)
+        json.dump(output_data, f, indent=2, ensure_ascii=False)
+    print(f"\n[3] Datos reales guardados en: {data_path}")
+
     bus = PersistentMmapSlabBus()
-    slab_id = 0x504D3136  # 0x3136 = 3136 states
+    slab_id = 0x504D3136
     meta_slab = bus.write_tensor_slab(slab_id, psi)
-    print(f"[6] PMTP Slab asignado con éxito: {meta_slab['slab_id_hex']} ({meta_slab['dim'] * 8} bytes en RAM)")
-    
-    # 7. Persist in PostgreSQL 16
+    print(f"[4] PMTP Slab actualizado: {meta_slab['slab_id_hex']} ({meta_slab['dim'] * 8} bytes)")
+
     conn = psycopg2.connect("dbname=polydim_vec_db user=postgres password=postgres host=localhost port=5432")
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         INSERT INTO session_context (conversation_id, summary, category, created_at)
         VALUES (%s, %s, %s, NOW())
         RETURNING id;
-    """, ('c8f6b7cd-c96d-4bc0-9428-ccccee03234c', json.dumps(output_data), 'SOTA_GLOBAL_HIGH_TC_DWAVE'))
+        """,
+        ("3f34edfc-4b9c-4658-84fc-10d32ef4da9b", json.dumps(output_data, ensure_ascii=False), "REPAIRED_2D_HUBBARD_EXACT_PAIRING"),
+    )
     row_id = cur.fetchone()[0]
     conn.commit()
     cur.close()
     conn.close()
-    print(f"[7] Persistido en PostgreSQL 16 (DB_ID: {row_id}, Exit Code 0)")
-    
-    print(f"\n[RESUMEN] Exit Code 0 | Latencia: {t_total_ms:.2f} ms | E_0 = {e0_stiefel:.4f} t | Ratio d/s = {ratio_ds:.2f}x")
+    print(f"[5] Persistido en PostgreSQL 16 (DB_ID: {row_id}) | Latencia: {t_total_ms:.1f} ms | EXIT CODE 0")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

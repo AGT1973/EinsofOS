@@ -1,12 +1,20 @@
 {
-  "problema": "Quantum Spin Liquid on Kagome Lattice (12 spins, D=4096)",
-  "relevancia_global": "RIKEN (Japón), CAS (China), CNRS (Francia), Balseiro (Argentina)",
-  "ground_energy_total": -12.416692,
-  "ground_energy_per_bond": -0.689816,
-  "chiral_order_param": 0.689816,
-  "stiefel_drift": 1.1102230246251565e-16,
+  "scope_disclaimer": "Exact complex diagonalization on finite 12-spin Kagome star in local CPU; NOT a QPU run nor thermodynamic-limit proof.",
+  "problema": "12-Spin Kagome Star Exact Complex Stiefel-Lanczos & True Scalar Spin Chirality",
+  "isotropic_j1_only": {
+    "ground_energy_spin_half": -4.5,
+    "energy_per_bond": -0.25,
+    "residual_norm": 4.760221851120692e-13,
+    "chirality_on_real_gs": 0.0
+  },
+  "chiral_t_broken_jchi_neg030": {
+    "ground_energy_spin_half": -4.6896089815,
+    "residual_norm": 6.097481107436214e-13,
+    "true_scalar_spin_chirality": 0.16812194
+  },
+  "stiefel_drift": 0.0,
   "shm_diff": 0.0,
   "pmtp_slab_id": "0x504D0012",
-  "latencia_ms": 206.06,
+  "latencia_ms": 2673.77,
   "exit_code": 0
 }

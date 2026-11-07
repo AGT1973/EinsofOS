@@ -1,23 +1,113 @@
 {
-  "desafio": "SOTA Quantum ZNE Error Mitigation on GHZ Scaling (3Q, 5Q, 8Q)",
-  "hardware_context": "Calibración real de IBM Marrakesh (156Q)",
-  "recuperacion_8q": {
-    "estado": "ÉXITO (Rescate de Entrelazamiento a 8Q)",
-    "fidelidad_cruda_8q": 0.6146,
-    "fidelidad_mitigada_8q": 0.8593,
-    "umbral_entrelazamiento": 0.5,
-    "entrelazamiento_rescatado": false
+  "scope_disclaimer": "Exact CPTP Kraus density-matrix gate-folding + 16,384-shot multinomial simulation in local CPU; NOT live QPU run.",
+  "problem": "GHZ Gate-Folding ZNE with CPTP Kraus Channels & Shot-Noise Variance Propagation",
+  "richardson_variance_inflation_factor": 2.2845,
+  "results_by_qubit_count": {
+    "3": {
+      "n_qubits": 3,
+      "raw_fidelity": 0.8966,
+      "raw_sigma": 0.0022,
+      "richardson_zne_fidelity": 0.9393,
+      "richardson_sigma": 0.0057,
+      "exponential_zne_fidelity": 0.9388,
+      "points": [
+        {
+          "lambda": 1,
+          "f_diag": 0.94281,
+          "x_parity": 0.85046,
+          "f_ghz": 0.89664,
+          "sigma_f": 0.00225,
+          "rho_true_fidelity_at_lambda": 0.9464
+        },
+        {
+          "lambda": 3,
+          "f_diag": 0.89795,
+          "x_parity": 0.73633,
+          "f_ghz": 0.81714,
+          "sigma_f": 0.0029,
+          "rho_true_fidelity_at_lambda": 0.85996
+        },
+        {
+          "lambda": 5,
+          "f_diag": 0.85901,
+          "x_parity": 0.63196,
+          "f_ghz": 0.74548,
+          "sigma_f": 0.00332,
+          "rho_true_fidelity_at_lambda": 0.78393
+        }
+      ]
+    },
+    "5": {
+      "n_qubits": 5,
+      "raw_fidelity": 0.8214,
+      "raw_sigma": 0.0029,
+      "richardson_zne_fidelity": 0.9078,
+      "richardson_sigma": 0.0072,
+      "exponential_zne_fidelity": 0.8998,
+      "points": [
+        {
+          "lambda": 1,
+          "f_diag": 0.89319,
+          "x_parity": 0.74963,
+          "f_ghz": 0.82141,
+          "sigma_f": 0.00285,
+          "rho_true_fidelity_at_lambda": 0.89425
+        },
+        {
+          "lambda": 3,
+          "f_diag": 0.80157,
+          "x_parity": 0.54858,
+          "f_ghz": 0.67508,
+          "sigma_f": 0.00362,
+          "rho_true_fidelity_at_lambda": 0.73828
+        },
+        {
+          "lambda": 5,
+          "f_diag": 0.72955,
+          "x_parity": 0.39868,
+          "f_ghz": 0.56412,
+          "sigma_f": 0.00398,
+          "rho_true_fidelity_at_lambda": 0.61601
+        }
+      ]
+    },
+    "8": {
+      "n_qubits": 8,
+      "raw_fidelity": 0.7156,
+      "raw_sigma": 0.0034,
+      "richardson_zne_fidelity": 0.8395,
+      "richardson_sigma": 0.0084,
+      "exponential_zne_fidelity": 0.8274,
+      "points": [
+        {
+          "lambda": 1,
+          "f_diag": 0.81952,
+          "x_parity": 0.61169,
+          "f_ghz": 0.71561,
+          "sigma_f": 0.00344,
+          "rho_true_fidelity_at_lambda": 0.82267
+        },
+        {
+          "lambda": 3,
+          "f_diag": 0.68201,
+          "x_parity": 0.35596,
+          "f_ghz": 0.51898,
+          "sigma_f": 0.00408,
+          "rho_true_fidelity_at_lambda": 0.59338
+        },
+        {
+          "lambda": 5,
+          "f_diag": 0.57111,
+          "x_parity": 0.21021,
+          "f_ghz": 0.39066,
+          "sigma_f": 0.00428,
+          "rho_true_fidelity_at_lambda": 0.44036
+        }
+      ]
+    }
   },
-  "rendimiento_bus": {
-    "muestreo_estandar_trafico": "120,000 shots en texto JSON (~4.8 MB de strings 1D)",
-    "einsof_pmtp_trafico": "24 bytes en PmtpShmBus (SLAB_ID: 0x504D0088)",
-    "reduccion_trafico_porcentaje": 99.998,
-    "tokens_en_chat": 0
-  },
-  "verificacion_silicio": {
-    "latencia_ms": 17.56,
-    "stiefel_drift": 0.0,
-    "shm_diff": 0.0,
-    "exit_code": 0
-  }
+  "pmtp_slab_id": "0x504D0088",
+  "shm_diff": 0.0,
+  "elapsed_ms": 9203.58,
+  "exit_code": 0
 }

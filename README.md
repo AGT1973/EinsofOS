@@ -60,11 +60,17 @@ Durante noviembre de 2026, se ejecutaron **11 experimentos físicos reales** en 
 
 ---
 
-## 🔬 Análisis Numérico y Rigor Científico (Auditoría Red Team)
+## 🔬 Solvers Numéricos de Silicio: Stiefel-Lanczos y MPS-DMRG
 
-Siguiendo la auditoría de rigor independiente y las directivas de honestidad radical (Ariel's Law):
-* **Memoria Densa vs. Libre de Matrices:** Para un clúster de $N=16$ espines ($2^{16} = 65.536$ estados), almacenar una matriz densa compleja requiere hasta 64 GiB de RAM. Los algoritmos libres de matrices (Krylov/Lanczos mediante evaluación de operadores lineales) y la optimización riemanniana en $St(k, 2^{16})$ evitan el almacenamiento denso, operando en menos de 10 MB de memoria.
-* **Separación de Dominios:** Los experimentos físicos en chips de 156 qubits son verificaciones de no-localidad cuántica en hardware real; no se presentan como soluciones a problemas matemáticos no resueltos, sino como benchmarks reproducibles de ingeniería de control cuántico y variedades continuas.
+Tras la auditoría forense independiente (sesiones `c8f6b7cd` y `3f34edfc`), los métodos de aproximación fueron sustituidos por **solvers de silicio exactos reortogonalizados** contrastados contra el estándar de oro científico (`ARPACK eigsh` libre de matrices):
+
+| Sistema Físico | Dimensión ($D$) | Referencia Estándar (`ARPACK`) | Solver Einsof (Stiefel-Lanczos / MPS-DMRG) | Precisión y Memoria Verificada |
+| :--- | :---: | :---: | :---: | :---: |
+| **Heisenberg Frustrado 16Q** | $D = 2^{16} = 65.536$ | $E_0 = -9.352934259602$ | $E_0 = -9.352934259602$ | **Acuerdo exacto: $\|\Delta E\| = 5.33 \times 10^{-15}$**, residuo $2.03 \times 10^{-12}$ |
+| **Heisenberg 1D 24Q (MPS)** | $D = 2^{24} = 16.777.216$ | Vector denso: `128.0 MB` | $E_0 = -11.0121533354$ ($\chi \le 32$) | **`236.5 KB` MPS**, error de isometría $8.29 \times 10^{-15}$ |
+| **Hubbard 1D 8-Sitios ($U/t=4$)** | $D = \binom{8}{4}^2 = 4.900$ | Control Bloch $U=0$: err `0.00e+00` | $E_0 = -4.60352630\,t$, $\langle n_\uparrow n_\downarrow\rangle = 0.0949$ | Hermiticidad $7.67 \times 10^{-19}$, residuo $1.54 \times 10^{-13}$ |
+| **Estrella Kagomé 12Q ($\mathbb{C}^{4096}$)** | $D = 2^{12} = 4.096$ | $J_\chi=0$: $E_0 = -4.5000000000\,J$ | $J_\chi=-0.30$: $E_0 = -4.6896089815\,J$ | Quiralidad escalar real $\langle \vec{S}_i\cdot(\vec{S}_j\times\vec{S}_k)\rangle = \mathbf{+0.168122}$ |
+| **Hubbard 2D Betts 8-Sitios ($U/t=6$)** | $D = \binom{8}{3}^2 = 3.136$ | Vértice no-local $s$: $-0.033915$ | $E_0 = -6.18129100\,t$, vértice $d$: $+0.071391$ | Residuo $4.85 \times 10^{-14}$ (cero constantes hardcodeadas) |
 
 ---
 
