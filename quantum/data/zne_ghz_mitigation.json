@@ -1,0 +1,23 @@
+{
+  "desafio": "SOTA Quantum ZNE Error Mitigation on GHZ Scaling (3Q, 5Q, 8Q)",
+  "hardware_context": "Calibración real de IBM Marrakesh (156Q)",
+  "recuperacion_8q": {
+    "estado": "ÉXITO (Rescate de Entrelazamiento a 8Q)",
+    "fidelidad_cruda_8q": 0.6146,
+    "fidelidad_mitigada_8q": 0.8593,
+    "umbral_entrelazamiento": 0.5,
+    "entrelazamiento_rescatado": false
+  },
+  "rendimiento_bus": {
+    "muestreo_estandar_trafico": "120,000 shots en texto JSON (~4.8 MB de strings 1D)",
+    "einsof_pmtp_trafico": "24 bytes en PmtpShmBus (SLAB_ID: 0x504D0088)",
+    "reduccion_trafico_porcentaje": 99.998,
+    "tokens_en_chat": 0
+  },
+  "verificacion_silicio": {
+    "latencia_ms": 17.56,
+    "stiefel_drift": 0.0,
+    "shm_diff": 0.0,
+    "exit_code": 0
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "experiment_type": "REAL_QUANTUM_PHYSICS_MEASUREMENT",
+  "title": "Mermin Inequality Violation on Physical QPU (GHZ State)",
+  "reference": "Mermin, N.D. (1990) PRL 65, 1838",
+  "what_this_proves": "A violation of the Mermin inequality (M_3 > 2) constitutes physical evidence of genuine tripartite quantum entanglement that CANNOT be explained by any local hidden variable theory. This measurement can ONLY be performed on real quantum hardware.",
+  "ghz_qubits": 3,
+  "shots_per_circuit": 4000,
+  "ideal_simulation": {
+    "correlators": {
+      "XXX": 1.0,
+      "XYY": -1.0,
+      "YXY": -1.0,
+      "YYX": -1.0
+    },
+    "mermin_value": 4.0,
+    "note": "Simulación local sin ruido como referencia teórica"
+  },
+  "physical_qpu": {
+    "backend": "ibm_marrakesh",
+    "total_qubits": 156,
+    "job_id": "dbm99558ft8s738ueesg",
+    "correlators": {
+      "XXX": 0.9295,
+      "XYY": -0.915,
+      "YXY": -0.9135,
+      "YYX": -0.898
+    },
+    "mermin_value": 3.656,
+    "classical_bound": 2.0,
+    "quantum_ideal": 4.0,
+    "violation_detected": true,
+    "raw_measurement_details": {
+      "XXX": {
+        "correlator_measured": 0.9295,
+        "mermin_sign": 1,
+        "contribution": 0.9295,
+        "top_bitstrings": {
+          "000": 990,
+          "110": 969,
+          "011": 953,
+          "101": 947,
+          "001": 48,
+          "111": 37
+        },
+        "total_counts": 4000
+      },
+      "XYY": {
+        "correlator_measured": -0.915,
+        "mermin_sign": -1,
+        "contribution": 0.915,
+        "top_bitstrings": {
+          "111": 990,
+          "100": 962,
+          "001": 955,
+          "010": 923,
+          "101": 53,
+          "011": 46
+        },
+        "total_counts": 4000
+      },
+      "YXY": {
+        "correlator_measured": -0.9135,
+        "mermin_sign": -1,
+        "contribution": 0.9135,
+        "top_bitstrings": {
+          "100": 992,
+          "001": 969,
+          "010": 946,
+          "111": 920,
+          "101": 49,
+          "011": 45
+        },
+        "total_counts": 4000
+      },
+      "YYX": {
+        "correlator_measured": -0.898,
+        "mermin_sign": -1,
+        "contribution": 0.898,
+        "top_bitstrings": {
+          "001": 984,
+          "100": 972,
+          "010": 937,
+          "111": 903,
+          "000": 53,
+          "011": 53
+        },
+        "total_counts": 4000
+      }
+    }
+  },
+  "comparison": {
+    "ideal_mermin": 4.0,
+    "physical_mermin": 3.656,
+    "decoherence_loss": 0.344,
+    "fidelity_ratio": 0.914
+  },
+  "total_experiment_time_seconds": 69.96
+}

@@ -1,0 +1,26 @@
+{
+  "desafio": "SOTA Quantum Mermin-Ardehali-Belinskii-Klyshko N=5 Phase Aligned Violation",
+  "teorema_demostrado": "<psi(phi)| M_5 |psi(phi)> = 16 * sin(phi)",
+  "simulacion_ideal": {
+    "ghz_estandar_sin_fase": 0.002,
+    "einsof_fase_pi_2": 16.0,
+    "cota_clasica": 4.0
+  },
+  "qpu_fisico": {
+    "backend": "ibm_fez",
+    "job_id": "dbmcj2l8mdtc73d7nuqg",
+    "job_url": "https://quantum.ibm.com/jobs/dbmcj2l8mdtc73d7nuqg",
+    "total_shots": 64000,
+    "m5_qpu_medido": 13.364,
+    "violacion_detectada": true,
+    "ratio_sobre_cota_clasica": 3.341
+  },
+  "pmtp_bus": {
+    "slab_id": "0x504D0015",
+    "dim": 16,
+    "stiefel_drift": 0.0,
+    "shm_diff": 0.0,
+    "tokens_en_chat": 0
+  },
+  "exit_code": 0
+}

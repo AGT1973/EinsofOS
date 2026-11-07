@@ -1,0 +1,12 @@
+{
+  "problema": "Mott Metal-Insulator Transition in Hubbard Model (16 spin-orbitals, D=4900)",
+  "relevancia_global": "Tsinghua (China), RIKEN (Japón), MPI Stuttgart (Alemania), Balseiro (Argentina)",
+  "u_over_t": 4.0,
+  "ground_energy": 0.029158,
+  "double_occupancy": 0.0468,
+  "stiefel_drift": 0.0,
+  "shm_diff": 0.0,
+  "pmtp_slab_id": "0x504D0008",
+  "latencia_ms": 910.91,
+  "exit_code": 0
+}

@@ -1,0 +1,128 @@
+{
+  "experiment_type": "REAL_QUANTUM_PHYSICS_MEASUREMENT",
+  "title": "GHZ Entanglement Scaling & Decoherence Map on IBM Quantum",
+  "references": [
+    "Mermin, N.D. (1990) PRL 65, 1838",
+    "Sackett et al. (2000) Nature 404, 256",
+    "Gühne & Tóth (2009) Physics Reports 474, 1-75"
+  ],
+  "backend": {
+    "name": "ibm_marrakesh",
+    "total_qubits": 156,
+    "operational": true
+  },
+  "verification": {
+    "scaling_job_id": "dbm9glpkbkrc73cp3igg",
+    "scaling_job_url": "https://quantum.ibm.com/jobs/dbm9glpkbkrc73cp3igg",
+    "previous_mermin_3q_job_id": "dbm99558ft8s738ueesg",
+    "previous_mermin_3q_job_url": "https://quantum.ibm.com/jobs/dbm99558ft8s738ueesg",
+    "ibm_dashboard": "https://quantum.ibm.com",
+    "note": "Todos los Job IDs son verificables en el panel de IBM Quantum con las credenciales de la cuenta."
+  },
+  "parameters": {
+    "qubit_counts_tested": [
+      3,
+      5,
+      8,
+      12,
+      16,
+      20
+    ],
+    "shots_per_circuit": 4000,
+    "total_circuits": 12,
+    "optimization_level": 3
+  },
+  "results": [
+    {
+      "n_qubits": 3,
+      "f_diagonal": 0.97025,
+      "x_parity": 0.9105,
+      "f_ghz_lower_bound": 0.940375,
+      "entanglement_detected": true,
+      "noise_percentage": 5.96,
+      "z_basis_top_bitstrings": {
+        "000": 1986,
+        "111": 1895,
+        "101": 45,
+        "011": 19
+      },
+      "total_shots": 4000
+    },
+    {
+      "n_qubits": 5,
+      "f_diagonal": 0.91775,
+      "x_parity": 0.734,
+      "f_ghz_lower_bound": 0.825875,
+      "entanglement_detected": true,
+      "noise_percentage": 17.41,
+      "z_basis_top_bitstrings": {
+        "00000": 1945,
+        "11111": 1726,
+        "11110": 66,
+        "11101": 57
+      },
+      "total_shots": 4000
+    },
+    {
+      "n_qubits": 8,
+      "f_diagonal": 0.316,
+      "x_parity": 0.6405,
+      "f_ghz_lower_bound": 0.47825,
+      "entanglement_detected": false,
+      "noise_percentage": 52.18,
+      "z_basis_top_bitstrings": {
+        "11111111": 640,
+        "00000000": 624,
+        "00001000": 580,
+        "11110111": 510
+      },
+      "total_shots": 4000
+    },
+    {
+      "n_qubits": 12,
+      "f_diagonal": 0.16675,
+      "x_parity": 0.0785,
+      "f_ghz_lower_bound": 0.122625,
+      "entanglement_detected": false,
+      "noise_percentage": 87.74,
+      "z_basis_top_bitstrings": {
+        "000000000000": 345,
+        "111111111111": 322,
+        "000100000000": 317,
+        "111011111111": 255
+      },
+      "total_shots": 4000
+    },
+    {
+      "n_qubits": 16,
+      "f_diagonal": 0.5345,
+      "x_parity": 0.37,
+      "f_ghz_lower_bound": 0.45225,
+      "entanglement_detected": false,
+      "noise_percentage": 54.77,
+      "z_basis_top_bitstrings": {
+        "0000000000000000": 1144,
+        "1111111111111111": 994,
+        "0000000000010000": 64,
+        "0000000010000000": 64
+      },
+      "total_shots": 4000
+    },
+    {
+      "n_qubits": 20,
+      "f_diagonal": 0.4165,
+      "x_parity": 0.006,
+      "f_ghz_lower_bound": 0.21125,
+      "entanglement_detected": false,
+      "noise_percentage": 78.88,
+      "z_basis_top_bitstrings": {
+        "00000000000000000000": 936,
+        "11111111111111111111": 730,
+        "00000000000001000000": 68,
+        "00000000000000000010": 56
+      },
+      "total_shots": 4000
+    }
+  ],
+  "total_experiment_time_seconds": 31.49
+}

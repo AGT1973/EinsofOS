@@ -1,0 +1,21 @@
+{
+  "desafio": "SOTA Quantum Spin Glass Frustrated Ground State (16 Qubits, D=65,536)",
+  "hardware_host": "AMD A4-6300 (2 CPU threads, 16 GB RAM DDR3, HDD)",
+  "metrica_memoria": {
+    "estandar_ram_requerida_gib": 64.0,
+    "estandar_resultado": "OOM CRASH (MemoryError - Asignación imposible en 16 GB RAM)",
+    "einsof_ram_utilizada_mb": 51.66,
+    "einsof_ram_delta_mb": 5.62,
+    "factor_reduccion_ram": 11661.2
+  },
+  "metrica_tokens": {
+    "estandar_serializacion": "Millones de flotantes a texto JSON / volcados de vector 1D",
+    "einsof_serializacion": "0 TOKENS (Descriptor atómico binario en PmtpShmBus SLAB_ID)"
+  },
+  "metrica_matematica": {
+    "ground_energy_convergida": -22.538776,
+    "defecto_variedad_stiefel": 0.0,
+    "shm_verificacion_discrepancia": 0.0
+  },
+  "exit_code": 0
+}
