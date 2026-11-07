@@ -15,12 +15,21 @@ import math
 import struct
 import numpy as np
 
-# Ruta hacia el nucleo PMTP
+# Ruta hacia el nucleo PMTP y motor silicio MATHESIS
 sys.path.insert(0, "E:/PMTP")
+sys.path.insert(0, "E:/EinsofOS/src")
+try:
+    from mathesis2python import mathesis_run, mathesis_norm, mathesis_dot2
+    USE_MATHESIS_SILICON = True
+except ImportError:
+    USE_MATHESIS_SILICON = False
+
 from pmtp_telepathy import AladinTelepathyClient
 
 def neumaier_norm(v: np.ndarray) -> float:
-    """Acumulador compensado de Neumaier con cota de error <= 10^-15"""
+    """Acumulador compensado de norma en silicio nativo AVX+FMA3 (cota error <= 10^-15)"""
+    if USE_MATHESIS_SILICON:
+        return mathesis_norm(v)
     s = 0.0
     c = 0.0
     for x in v:
@@ -69,17 +78,21 @@ class HacedorSiliconWorker:
         energy = 1.0
         for step in range(10):
             # Proyeccion ortogonal de gradiente hacia la cuenca de atraccion
-            dot = np.dot(state, v_target)
+            dot = mathesis_dot2(state, v_target) if USE_MATHESIS_SILICON else np.dot(state, v_target)
             u = v_target - dot * state
             norm_u = neumaier_norm(u)
             if norm_u > 1e-12:
                 u /= norm_u
                 theta = 0.05
-                state = math.cos(theta) * state + math.sin(theta) * u
-            
-            # Retraccion Stiefel polar con acumulador Neumaier
-            cur_norm = neumaier_norm(state)
-            state /= cur_norm
+                if USE_MATHESIS_SILICON:
+                    state = mathesis_run(state, u, alpha=math.cos(theta), gamma=math.sin(theta))
+                else:
+                    state = math.cos(theta) * state + math.sin(theta) * u
+                    cur_norm = neumaier_norm(state)
+                    state /= cur_norm
+            else:
+                cur_norm = neumaier_norm(state)
+                state /= cur_norm
             energy = 0.5 * (neumaier_norm(state - v_target) ** 2)
 
         ortho_err = abs(neumaier_norm(state) - 1.0)

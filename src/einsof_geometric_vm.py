@@ -12,6 +12,13 @@ import math
 import struct
 import numpy as np
 
+# Integración con el motor de ejecución directo en silicio MATHESIS (AVX+FMA3 / Dot2)
+try:
+    from mathesis2python import mathesis_run, mathesis_norm, mathesis_dot2
+    USE_MATHESIS_SILICON = True
+except ImportError:
+    USE_MATHESIS_SILICON = False
+
 # Opcodes
 EINSOF_OP_HALT_STABLE        = 0x00
 EINSOF_OP_ROT_LIE            = 0x01
@@ -68,9 +75,12 @@ class EinsofInstruction64:
 
 def neumaier_norm(v: np.ndarray) -> float:
     """
-    Acumulador compensado de Neumaier para norma euclídea en S^(D-1).
-    Garantiza error relativo <= 10^-15 frente a pérdida de significación en float64.
+    Acumulador compensado para norma euclídea en S^(D-1).
+    Usa el motor AVX+FMA3 de MATHESIS si está disponible (cero bucles CPython),
+    o acumulador Neumaier compensado con error relativo <= 10^-15.
     """
+    if USE_MATHESIS_SILICON:
+        return mathesis_norm(v)
     s = 0.0
     c = 0.0
     for x in v:
@@ -111,6 +121,10 @@ class EinsofGeometricVM:
     def retract_stiefel(self, slab_id: int) -> float:
         """Aplica retracción polar exacta y retorna el error ortonormal respecto a 1.0"""
         v = self.slabs[slab_id]
+        if USE_MATHESIS_SILICON:
+            v_normed = mathesis_run(v, v, alpha=0.5, gamma=0.5)
+            self.slabs[slab_id] = v_normed
+            return abs(mathesis_norm(v_normed) - 1.0)
         current_norm = neumaier_norm(v)
         self.slabs[slab_id] = v / current_norm
         err = abs(current_norm - 1.0)
@@ -119,26 +133,33 @@ class EinsofGeometricVM:
     def rotate_lie(self, slab_id: int, alpha: float):
         """
         Rotación continua de Lie SO(D) hacia la cuenca de atracción del atractor.
-        Desplaza el estado a lo largo de una geodésica continua.
+        Desplaza el estado a lo largo de una geodésica continua vía microcódigo AVX+FMA3.
         """
         v = self.slabs[slab_id]
         target = self.target_state
         # Base ortonormal 2D para la rotación (v, u)
-        dot = np.dot(v, target)
+        dot = mathesis_dot2(v, target) if USE_MATHESIS_SILICON else np.dot(v, target)
         u = target - dot * v
         norm_u = neumaier_norm(u)
         if norm_u > 1e-12:
             u = u / norm_u
             # Rotación en el 2-plano por ángulo theta = alpha
             theta = alpha
-            v_new = math.cos(theta) * v + math.sin(theta) * u
-            self.slabs[slab_id] = v_new
-        self.retract_stiefel(slab_id)
+            if USE_MATHESIS_SILICON:
+                # Síntesis directa en silicio con mathesis_run: cos(theta)*v + sin(theta)*u
+                self.slabs[slab_id] = mathesis_run(v, u, alpha=math.cos(theta), gamma=math.sin(theta))
+            else:
+                v_new = math.cos(theta) * v + math.sin(theta) * u
+                self.slabs[slab_id] = v_new
+                self.retract_stiefel(slab_id)
+        else:
+            self.retract_stiefel(slab_id)
 
     def compute_lyapunov_energy(self, slab_id: int) -> float:
         """Energía potencial cuadrática Phi(X) = 0.5 * ||X - X*||^2"""
         diff = self.slabs[slab_id] - self.target_state
-        return 0.5 * (neumaier_norm(diff) ** 2)
+        norm_diff = neumaier_norm(diff)
+        return 0.5 * (norm_diff ** 2)
 
     def collapse_ephemeral_1d(self, slab_id: int, target_addr: int) -> int:
         """
