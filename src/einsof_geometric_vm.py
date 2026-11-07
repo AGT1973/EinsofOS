@@ -32,13 +32,13 @@ EINSOF_COLLAPSE_GOP_RASTER   = 0x00
 EINSOF_COLLAPSE_SERIAL_1D    = 0x01
 EINSOF_COLLAPSE_CAN_BUS      = 0x02
 
-STRUCT_FORMAT = '<BBHIIQdQIf20s'
+STRUCT_FORMAT = '<BBHIIQdQIfHH16s'
 assert struct.calcsize(STRUCT_FORMAT) == 64, "EinsofInstruction64 debe medir exactamente 64 bytes"
 
 class EinsofInstruction64:
     def __init__(self, opcode=0, flags=1, dimension=2048, src_slab_id=0, dst_slab_id=0,
                  metric_tensor_ptr=0, lyapunov_energy_threshold=0.01, mmio_target_addr=0x80000000,
-                 collapse_mode=0, param_alpha=0.05, reserved=b'\x00'*20):
+                 collapse_mode=0, param_alpha=0.05, agent_a=2, turing_t=10, reserved=b'\x00'*16):
         self.opcode = opcode
         self.flags = flags
         self.dimension = dimension
@@ -49,6 +49,8 @@ class EinsofInstruction64:
         self.mmio_target_addr = mmio_target_addr
         self.collapse_mode = collapse_mode
         self.param_alpha = param_alpha
+        self.agent_a = agent_a
+        self.turing_t = turing_t
         self.reserved = reserved
 
     def pack(self) -> bytes:
@@ -64,6 +66,8 @@ class EinsofInstruction64:
             self.mmio_target_addr,
             self.collapse_mode,
             self.param_alpha,
+            self.agent_a,
+            self.turing_t,
             self.reserved
         )
 
@@ -204,7 +208,11 @@ class EinsofGeometricVM:
             ins = EinsofInstruction64.unpack(raw)
 
             if ins.opcode == EINSOF_OP_ROT_LIE:
-                self.rotate_lie(ins.src_slab_id, ins.param_alpha)
+                # Relajación geodésica continua de turing_t vueltas/ciclos
+                rounds = max(1, ins.turing_t)
+                step_alpha = ins.param_alpha / float(rounds)
+                for _ in range(rounds):
+                    self.rotate_lie(ins.src_slab_id, step_alpha)
 
             elif ins.opcode == EINSOF_OP_RETRACT_STIEFEL:
                 err = self.retract_stiefel(ins.src_slab_id)
