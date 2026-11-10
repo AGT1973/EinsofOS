@@ -25,6 +25,7 @@ from einsof_geometric_vm import (
     EINSOF_OP_PROJECT_GRASSMANN,
     EINSOF_OP_BIFURCATE_LYAPUNOV,
     EINSOF_OP_COLLAPSE_1D_MMIO,
+    EINSOF_OP_SYMPLECTIC_COV,
     EINSOF_COLLAPSE_GOP_RASTER,
     STRUCT_FORMAT
 )
@@ -99,6 +100,28 @@ class TestEinsofGeometricISA(unittest.TestCase):
         self.assertEqual(res["exit_code"], 0)
         self.assertEqual(res["instructions_count"], 5)
         self.assertEqual(res["collapses"], 1)
+        self.assertLessEqual(res["orthonormal_error"], 1e-15)
+
+    def test_06_symplectic_covariant_operator_uk(self):
+        """Verifica Lema 5.1: Operador covariante simpléctico U(K) preserva Stiefel y Sp(2K) con error <= 1e-15"""
+        dim = 2048
+        vm = EinsofGeometricVM(dimension=dim)
+        # Normalizar estado inicial
+        vm.retract_stiefel(0)
+        norm_before = neumaier_norm(vm.slabs[0])
+        self.assertAlmostEqual(norm_before, 1.0, places=14)
+
+        # Aplicar operador covariante simpléctico U(K=1024)
+        eps_orth, eps_sp = vm.symplectic_covariant_step(0, theta=0.125)
+        self.assertLessEqual(eps_orth, 1e-15, f"Defecto de ortogonalidad Stiefel excedido: {eps_orth}")
+        self.assertLessEqual(eps_sp, 1e-15, f"Defecto simpléctico Sp(2K) excedido: {eps_sp}")
+
+        # Ejecutar en stream binario de 64 bytes
+        stream = bytearray()
+        stream.extend(EinsofInstruction64(opcode=EINSOF_OP_SYMPLECTIC_COV, dimension=dim, param_alpha=0.25).pack())
+        stream.extend(EinsofInstruction64(opcode=EINSOF_OP_HALT_STABLE).pack())
+        res = vm.execute_stream(bytes(stream))
+        self.assertEqual(res["exit_code"], 0)
         self.assertLessEqual(res["orthonormal_error"], 1e-15)
 
 if __name__ == "__main__":

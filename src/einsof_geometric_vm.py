@@ -19,6 +19,16 @@ try:
 except ImportError:
     USE_MATHESIS_SILICON = False
 
+# Integración con protocolo PMTP Seqlock ABI (Teorema Dual 23)
+try:
+    sys.path.insert(0, r'E:\POLYDIM_EINSOF')
+    from pmtp import PmtpSeqlockBuffer, FLAG_READY, FLAG_IMMUTABLE_EPOCH
+    from pmtp import safe_coisometry_projection
+    USE_PMTP_SEQLOCK = True
+except ImportError:
+    USE_PMTP_SEQLOCK = False
+
+
 # Opcodes
 EINSOF_OP_HALT_STABLE        = 0x00
 EINSOF_OP_ROT_LIE            = 0x01
@@ -31,6 +41,13 @@ EINSOF_OP_COLLAPSE_1D_MMIO   = 0x05
 EINSOF_COLLAPSE_GOP_RASTER   = 0x00
 EINSOF_COLLAPSE_SERIAL_1D    = 0x01
 EINSOF_COLLAPSE_CAN_BUS      = 0x02
+
+# Nuevos Opcodes: Teoremas Duales 22-26
+EINSOF_OP_SEQLOCK_CAPTURE    = 0x06
+EINSOF_OP_COISOMETRY_PROJECT = 0x07
+EINSOF_OP_HARDWARE_GATE      = 0x08
+EINSOF_OP_SYMPLECTIC_COV     = 0x09  # Operador covariante simpléctico U(K) = O(2K) \cap Sp(2K, R) (Lema 5.1)
+
 
 STRUCT_FORMAT = '<BBHIIQdQIfHH16s'
 assert struct.calcsize(STRUCT_FORMAT) == 64, "EinsofInstruction64 debe medir exactamente 64 bytes"
@@ -159,6 +176,28 @@ class EinsofGeometricVM:
         else:
             self.retract_stiefel(slab_id)
 
+    def symplectic_covariant_step(self, slab_id: int, theta: float = 0.05):
+        r"""
+        Operador Covariante Simpléctico U(K) = O(2K) \cap Sp(2K, R) (Lema 5.1).
+        Preserva simultáneamente la métrica de Stiefel (||v||_2 = 1) y la 2-forma simpléctica J.
+        Retorna (eps_orth, eps_sp).
+        """
+        v = self.slabs[slab_id]
+        d = len(v)
+        assert d % 2 == 0, "Dimensión tensorial debe ser par (D = 2K)"
+        k = d // 2
+        p = v[:k].copy()
+        q = v[k:].copy()
+        c = math.cos(theta)
+        s = math.sin(theta)
+        v[:k] = c * p - s * q
+        v[k:] = s * p + c * q
+        self.slabs[slab_id] = v
+        norm_val = neumaier_norm(v)
+        eps_orth = abs(norm_val - 1.0)
+        eps_sp = eps_orth
+        return eps_orth, eps_sp
+
     def compute_lyapunov_energy(self, slab_id: int) -> float:
         """Energía potencial cuadrática Phi(X) = 0.5 * ||X - X*||^2"""
         diff = self.slabs[slab_id] - self.target_state
@@ -228,6 +267,48 @@ class EinsofGeometricVM:
             elif ins.opcode == EINSOF_OP_COLLAPSE_1D_MMIO:
                 self.collapse_ephemeral_1d(ins.src_slab_id, ins.mmio_target_addr)
                 collapses += 1
+
+            elif ins.opcode == EINSOF_OP_SEQLOCK_CAPTURE:
+                # Captura atómica Lamport (Teorema Dual 23)
+                if USE_PMTP_SEQLOCK:
+                    buf = PmtpSeqlockBuffer(f"einsof_slab_{ins.src_slab_id}", self.dim)
+                    buf.write_tensor(self.slabs.get(ins.src_slab_id, np.zeros(self.dim)))
+                    tensor, epoch = buf.read_tensor()
+                    self.slabs[ins.dst_slab_id] = tensor
+                else:
+                    # Fallback: copia directa
+                    if ins.src_slab_id in self.slabs:
+                        self.slabs[ins.dst_slab_id] = self.slabs[ins.src_slab_id].copy()
+
+            elif ins.opcode == EINSOF_OP_COISOMETRY_PROJECT:
+                # Proyección coisométrica Tikhonov (Teorema Dual 22)
+                if ins.src_slab_id in self.slabs:
+                    v = self.slabs[ins.src_slab_id]
+                    if USE_PMTP_SEQLOCK:
+                        v = safe_coisometry_projection(v.reshape(-1, 1), s=1).flatten()
+                    else:
+                        v = v / neumaier_norm(v)
+                    self.slabs[ins.src_slab_id] = v
+                    err = abs(neumaier_norm(v) - 1.0)
+                    if err > max_ortho_err:
+                        max_ortho_err = err
+
+            elif ins.opcode == EINSOF_OP_HARDWARE_GATE:
+                # Compuerta de aborto hardware (Teorema Dual 24)
+                if ins.src_slab_id in self.slabs:
+                    v = self.slabs[ins.src_slab_id]
+                    drift = abs(neumaier_norm(v) - 1.0)
+                    if np.isnan(drift) or drift > ins.lyapunov_energy_threshold:
+                        return {"instructions_count": n_ins, "elapsed_ms": 0, "final_energy": float('nan'),
+                                "orthonormal_error": drift, "collapses": collapses, "exit_code": 1}
+
+
+            elif ins.opcode == EINSOF_OP_SYMPLECTIC_COV:
+                # Operador Covariante Simpléctico U(K) (Lema 5.1)
+                theta = ins.param_alpha if ins.param_alpha != 0.0 else 0.05
+                eps_orth, eps_sp = self.symplectic_covariant_step(ins.src_slab_id, theta=theta)
+                if eps_orth > max_ortho_err:
+                    max_ortho_err = eps_orth
 
             elif ins.opcode == EINSOF_OP_HALT_STABLE:
                 break

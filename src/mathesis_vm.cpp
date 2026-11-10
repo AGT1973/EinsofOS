@@ -67,7 +67,17 @@ int main() {
     double latency_us = std::chrono::duration<double, std::micro>(t_end - t_start).count();
 
     // 5. Generar archivo binario ejecutable .mat con 4 instrucciones puras de 64B
-    MathesisInstruction64 program[4] = {};
+    // Extensión: Programa ampliado con Coisometría Tikhonov (Teorema Dual 22)
+    MathesisInstruction64 program[5] = {};
+    
+    // Inst 4: Coisometría Tikhonov sobre la síntesis (opcode 0x0B)
+    program[4].opcode = 0x0B; // COISOMETRY_PROJECT
+    program[4].dim_d = static_cast<uint16_t>(D);
+    program[4].sage_mask = 0x03;
+    program[4].source_slab_a = 0x3000;
+    program[4].dest_slab = 0x3000;
+    program[4].potential_alpha = 1e-6; // Lambda Tikhonov
+
     
     // Inst 0: Ingesta de Tesis Euler
     program[0].opcode = static_cast<uint8_t>(MathesisOpcode::ROT_LIE_SO);

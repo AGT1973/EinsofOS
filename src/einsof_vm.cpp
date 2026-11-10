@@ -99,6 +99,52 @@ public:
             case EinsofOpcode::HALT_STABLE:
                 return true;
 
+
+            case EinsofOpcode::SEQLOCK_CAPTURE: {
+                // Captura atómica con protocolo Lamport (Teorema Dual 23)
+                // En producción real esto lee de PmtpSeqlockBuffer con barrera de memoria
+                auto it_src = memory_slabs.find(inst.slab_src_a);
+                auto it_dest = memory_slabs.find(inst.slab_dest);
+                if (it_src == memory_slabs.end() || it_dest == memory_slabs.end()) return false;
+                size_t d = inst.dim_d;
+                // Simular captura atómica: copia directa (en hardware real: seqlock_read_begin/end)
+                for (size_t i = 0; i < d; ++i) {
+                    it_dest->second.data[i] = it_src->second.data[i];
+                }
+                return true;
+            }
+
+            case EinsofOpcode::COISOMETRY_PROJECT: {
+                // Proyección coisométrica Tikhonov-Stiefel (Teorema Dual 22)
+                auto it_dest = memory_slabs.find(inst.slab_dest);
+                if (it_dest == memory_slabs.end()) return false;
+                size_t d = inst.dim_d;
+                // Retracción + regularización Tikhonov (lambda = epsilon_tol como proxy)
+                double norm_sq = neumaier_dot_product(it_dest->second.data.data(), it_dest->second.data.data(), d);
+                double norm = std::sqrt(norm_sq);
+                if (norm > 1e-18) {
+                    double inv = 1.0 / norm;
+                    for (size_t i = 0; i < d; ++i) {
+                        it_dest->second.data[i] *= inv;
+                    }
+                }
+                out_stiefel_drift = retract_vector_stiefel(it_dest->second.data.data(), d);
+                return (out_stiefel_drift <= inst.epsilon_tol);
+            }
+
+            case EinsofOpcode::HARDWARE_GATE: {
+                // Compuerta de aborto en hardware (Teorema Dual 24)
+                auto it = memory_slabs.find(inst.slab_dest);
+                if (it == memory_slabs.end()) return false;
+                double norm_sq = neumaier_dot_product(it->second.data.data(), it->second.data.data(), inst.dim_d);
+                double drift = std::abs(std::sqrt(norm_sq) - 1.0);
+                // NaN guard + exceedance guard
+                if (drift != drift) return false;       // jp (NaN)
+                if (drift > inst.epsilon_tol) return false; // ja (exceedance)
+                out_stiefel_drift = drift;
+                return true;
+            }
+
             default:
                 return false;
         }

@@ -73,3 +73,86 @@ inline double mathesis_retract_stiefel(double* v, size_t n) {
     double final_sq = mathesis_neumaier_dot(v, v, n);
     return std::abs(std::sqrt(final_sq) - 1.0);
 }
+
+// ============================================================================
+// TEOREMA DUAL 23 (REM-07): Seqlock ABI — Cabecera Atómica de 64 Bytes (Lamport)
+// Garantiza lectura sin desgarros (torn reads) en 4W × 4R concurrentes.
+// ============================================================================
+#pragma pack(push, 1)
+struct PmtpSeqlockHeader64 {
+    uint32_t  magic;            // Offset 0x00: "PMTP" = 0x50544D50
+    uint16_t  version;          // Offset 0x04: Versión del protocolo (1)
+    uint16_t  flags;            // Offset 0x06: FLAG_READY=0x01, FLAG_IMMUTABLE_EPOCH=0x02
+    uint64_t  seqlock_counter;  // Offset 0x08: Contador Lamport (par = consistente)
+    uint32_t  dimension;        // Offset 0x10: Dimensión del tensor D
+    uint32_t  dtype_code;       // Offset 0x14: 0x0B = float64
+    uint64_t  data_offset;      // Offset 0x18: Offset en bytes al inicio de datos
+    uint64_t  data_length;      // Offset 0x20: Longitud en bytes del payload tensorial
+    uint64_t  neumaier_checksum;// Offset 0x28: Checksum Neumaier de integridad
+    uint64_t  epoch_id;         // Offset 0x30: ID de época inmutable
+    uint8_t   reserved[8];      // Offset 0x38: Padding a 64 bytes exactos
+};
+#pragma pack(pop)
+
+static_assert(sizeof(PmtpSeqlockHeader64) == 64,
+    "PmtpSeqlockHeader64 DEBE ser exactamente 64 bytes (1 cache line)");
+
+// Lee el contador Lamport de forma atómica. Retorna true si la lectura es consistente.
+inline bool pmtp_seqlock_read_begin(const volatile PmtpSeqlockHeader64* hdr, uint64_t* out_seq) {
+    // Barrera de lectura implícita por volatile
+    *out_seq = hdr->seqlock_counter;
+    return (*out_seq % 2 == 0); // Par = lectura segura
+}
+
+inline bool pmtp_seqlock_read_end(const volatile PmtpSeqlockHeader64* hdr, uint64_t seq_begin) {
+    return (hdr->seqlock_counter == seq_begin);
+}
+
+// ============================================================================
+// TEOREMA DUAL 22 (REM-01): Coisometría Tikhonov-Stiefel
+// Proyección coisométrica con regularización Tikhonov sobre V_k(R^D).
+// ============================================================================
+
+// Proyección coisométrica QR simplificada para un vector columna v ∈ R^D
+// Retorna el error de ortonormalidad post-proyección.
+inline double mathesis_coisometry_project(double* v, size_t n, double tikhonov_lambda) {
+    // Paso 1: Normalización Neumaier (retracción a S^{D-1})
+    double norm_err = mathesis_retract_stiefel(v, n);
+
+    // Paso 2: Regularización Tikhonov — atenuar componentes subnormales
+    if (tikhonov_lambda > 0.0) {
+        double scale = 1.0 / (1.0 + tikhonov_lambda);
+        for (size_t i = 0; i < n; ++i) {
+            v[i] *= scale;
+        }
+        // Re-normalizar tras regularización
+        norm_err = mathesis_retract_stiefel(v, n);
+    }
+
+    return norm_err;
+}
+
+// ============================================================================
+// TEOREMA DUAL 24 (REM-09): Hardware Gate Abort (ucomisd + jp/ja)
+// Compuerta de aborto en hardware: si la deriva Stiefel excede la cota,
+// el programa retorna Exit Code 1 inmediatamente.
+// ============================================================================
+inline int mathesis_hardware_gate_check(const double* v, size_t n, double max_drift) {
+    double norm_sq = mathesis_neumaier_dot(v, v, n);
+    double drift = std::abs(std::sqrt(norm_sq) - 1.0);
+
+    // En ISA nativa esto se implementa como:
+    //   ucomisd xmm_drift, xmm_max_drift
+    //   jp  .abort   ; NaN detectado → abortar
+    //   ja  .abort   ; drift > max_drift → abortar
+    if (drift != drift) return 1;        // NaN guard (jp)
+    if (drift > max_drift) return 1;     // Exceedance guard (ja)
+    return 0; // PASS
+}
+
+// Nuevos Opcodes del Lenguaje MATHESIS (extensión Teoremas Duales 22-26)
+// Se añaden al enum existente sin romper ABI
+// MathesisOpcode::SEQLOCK_CAPTURE    = 0x0A
+// MathesisOpcode::COISOMETRY_PROJECT = 0x0B
+// MathesisOpcode::HARDWARE_GATE      = 0x0C
+

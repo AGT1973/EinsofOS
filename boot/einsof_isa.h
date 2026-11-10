@@ -22,6 +22,29 @@
 #define EINSOF_COLLAPSE_SERIAL_1D    0x01
 #define EINSOF_COLLAPSE_CAN_BUS      0x02
 
+
+// Extensión ISA: Opcodes de Teoremas Duales 22-26 (Regla 19 Afianzada)
+#define EINSOF_OP_SEQLOCK_CAPTURE    0x06  // Captura atómica Lamport sin torn reads
+#define EINSOF_OP_COISOMETRY_PROJECT 0x07  // Proyección coisométrica Tikhonov-Stiefel
+#define EINSOF_OP_HARDWARE_GATE      0x08  // Compuerta de aborto en hardware (ucomisd+jp/ja)
+
+// Cabecera Seqlock PMTP de 64 bytes para interoperabilidad con PmtpSeqlockBuffer
+typedef struct {
+    uint32_t  magic;             // "PMTP" = 0x504D5450
+    uint16_t  version;
+    uint16_t  flags;
+    uint64_t  seqlock_counter;
+    uint32_t  dimension;
+    uint32_t  dtype_code;
+    uint64_t  data_offset;
+    uint64_t  data_length;
+    uint64_t  neumaier_checksum;
+    uint64_t  epoch_id;
+    uint8_t   reserved[8];
+} PmtpSeqlockHeader64;
+
+_Static_assert(sizeof(PmtpSeqlockHeader64) == 64, "PmtpSeqlockHeader64 must be 64 bytes");
+
 // Estructura binaria exacta de 64 bytes (1 cache-line en arquitecturas x86_64)
 #pragma pack(push, 1)
 typedef struct {

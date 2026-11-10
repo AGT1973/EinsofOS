@@ -32,8 +32,28 @@ enum class EinsofOpcode : uint32_t {
     BIFURCATE_LYAPUNOV = 0x05,  // Bifurcación por gradiente de energía
     DMA_MMIO_IN        = 0x06,  // Ingesta directa de hardware al Slab
     DMA_MMIO_OUT       = 0x07,  // Emisión directa del Slab a bus de hardware
-    HALT_STABLE        = 0x08   // Fin de ejecución / Punto fijo alcanzado
+    HALT_STABLE        = 0x08,  // Fin de ejecución / Punto fijo alcanzado
+    // Extensión: Teoremas Duales 22-26 (Regla 19 Afianzada)
+    SEQLOCK_CAPTURE      = 0x09,  // Captura atómica Lamport sin torn reads (Teorema Dual 23)
+    COISOMETRY_PROJECT   = 0x0A,  // Proyección coisométrica Tikhonov-Stiefel (Teorema Dual 22)
+    HARDWARE_GATE        = 0x0B,  // Compuerta de aborto hardware ucomisd+jp/ja (Teorema Dual 24)
+    SYMPLECTIC_COVARIANT = 0x0C   // Operador covariante simpléctico U(K) = O(2K) \cap Sp(2K, R) (Lema 5.1)
 };
+
+// Operador Covariante Simpléctico U(K) = O(2K) \cap Sp(2K, R) (Lema 5.1 / Teorema T-EINSOF-COVATTN)
+// Preserva simultáneamente la métrica de Stiefel y la 2-forma simpléctica canónica J
+inline void apply_symplectic_covariant_uk(double* v, size_t dim, double theta) {
+    if (dim % 2 != 0) return;
+    size_t k = dim / 2;
+    double c = std::cos(theta);
+    double s = std::sin(theta);
+    for (size_t i = 0; i < k; ++i) {
+        double p = v[i];
+        double q = v[k + i];
+        v[i]     = c * p - s * q;
+        v[k + i] = s * p + c * q;
+    }
+}
 
 // Acumulador compensado de Neumaier para garantizar error relativo <= 1e-15 en silicio
 inline double neumaier_dot_product(const double* a, const double* b, size_t n) {
